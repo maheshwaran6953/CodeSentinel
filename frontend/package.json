@@ -1,0 +1,30 @@
+{
+  "name": "codesentianel-frontend",
+  "version": "1.0.0",
+  "description": "CodeSentinel Web Portal — Student & Faculty Dashboard",
+  "private": true,
+  "scripts": {
+    "start": "ng serve --open",
+    "build": "ng build",
+    "test": "ng test"
+  },
+  "dependencies": {
+    "@angular/animations": "^19.2.25",
+    "@angular/common": "^19.2.25",
+    "@angular/compiler": "^19.2.25",
+    "@angular/core": "^19.2.25",
+    "@angular/forms": "^19.2.25",
+    "@angular/platform-browser": "^19.2.25",
+    "@angular/platform-browser-dynamic": "^19.2.25",
+    "@angular/router": "^19.2.25",
+    "rxjs": "^7.8.1",
+    "tslib": "^2.6.2",
+    "zone.js": "^0.15.0"
+  },
+  "devDependencies": {
+    "@angular-devkit/build-angular": "^19.2.25",
+    "@angular/cli": "^19.2.25",
+    "@angular/compiler-cli": "^19.2.25",
+    "typescript": "~5.6.2"
+  }
+}

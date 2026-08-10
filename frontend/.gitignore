@@ -1,0 +1,36 @@
+# Node modules
+node_modules/
+package-lock.json
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment
+.env
+.env.local
+
+# Build outputs
+dist/
+build/
+*.tgz
+
+# OS
+Thumbs.db
+
+# Angular
+frontend/dist/
+frontend/.angular/
+backend/dist/
+
+# Testing
+coverage/
+
+# Temp
+*.tmp
+.cache/
