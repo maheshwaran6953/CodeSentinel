@@ -1,0 +1,329 @@
+body {
+margin: 0;
+padding: 0;
+font-family: Inter, sans-serif;
+}
+
+.login-container {
+display: flex;
+min-height: 100vh;
+align-items: stretch;
+}
+
+.branding-panel {
+display: none;
+flex: 1;
+background: linear-gradient(135deg, #0052cc 0%, #003d9b 100%);
+color: white;
+padding: 48px;
+flex-direction: column;
+justify-content: center;
+align-items: flex-start;
+}
+
+.branding-panel.show {
+display: flex;
+}
+
+.form-panel {
+flex: 1;
+background: white;
+display: flex;
+flex-direction: column;
+justify-content: center;
+align-items: center;
+padding: 24px;
+}
+
+.form-container {
+width: 100%;
+max-width: 400px;
+}
+
+.login-card {
+width: 100%;
+border: 1px solid #E5E7EB;
+border-radius: 8px;
+background: white;
+box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.card-header {
+padding: 32px 32px 24px;
+border-bottom: 1px solid #E5E7EB;
+text-align: center;
+}
+
+.card-header h2 {
+margin: 0;
+font-size: 20px;
+font-weight: 600;
+color: #1F2937;
+}
+
+.tabs {
+display: flex;
+border-bottom: 1px solid #E5E7EB;
+background: white;
+}
+
+.tab-button {
+flex: 1;
+padding: 16px;
+background: none;
+border: none;
+border-bottom: 2px solid transparent;
+font-size: 14px;
+font-weight: 600;
+color: #6B7280;
+cursor: pointer;
+text-align: center;
+transition: all 0.3s ease;
+}
+
+.tab-button.active {
+color: #1F2937;
+border-bottom-color: #0052cc;
+}
+
+.tab-button:hover:not(.active) {
+background: #F9FAFB;
+color: #4B5563;
+}
+
+.tab-content {
+display: none;
+padding: 32px;
+}
+
+.tab-content.active {
+display: block;
+}
+
+.github-button {
+width: 100%;
+background: #24292e;
+color: white;
+border: none;
+padding: 12px 16px;
+border-radius: 6px;
+font-size: 14px;
+font-weight: 600;
+cursor: pointer;
+display: flex;
+align-items: center;
+justify-content: center;
+gap: 12px;
+margin-bottom: 16px;
+transition: background 0.3s ease;
+}
+
+.github-button:hover {
+background: #1b1f23;
+}
+
+.github-button svg {
+width: 20px;
+height: 20px;
+}
+
+.subtext {
+text-align: center;
+font-size: 12px;
+color: #6B7280;
+}
+
+.form-group {
+margin-bottom: 16px;
+}
+
+.form-group label {
+display: block;
+font-size: 12px;
+font-weight: 600;
+color: #1F2937;
+margin-bottom: 8px;
+}
+
+.form-group input {
+width: 100%;
+padding: 12px;
+border: 1px solid #D1D5DB;
+border-radius: 6px;
+font-size: 14px;
+box-sizing: border-box;
+transition: border-color 0.3s ease;
+}
+
+.form-group input:focus {
+outline: none;
+border-color: #0052cc;
+box-shadow: 0 0 0 3px rgba(0, 82, 204, 0.1);
+}
+
+.checkbox-group {
+display: flex;
+align-items: center;
+margin-bottom: 16px;
+}
+
+.checkbox-group input {
+width: auto;
+margin-right: 8px;
+}
+
+.checkbox-group label {
+font-size: 12px;
+margin-bottom: 0;
+}
+
+.forgot-password {
+text-align: right;
+margin-bottom: 24px;
+}
+
+.forgot-password a {
+font-size: 12px;
+color: #0052cc;
+text-decoration: none;
+transition: text-decoration 0.3s ease;
+}
+
+.forgot-password a:hover {
+text-decoration: underline;
+}
+
+.signin-button {
+width: 100%;
+background: #0052cc;
+color: white;
+border: none;
+padding: 14px 16px;
+border-radius: 6px;
+font-size: 16px;
+font-weight: 600;
+cursor: pointer;
+transition: background 0.3s ease;
+}
+
+.signin-button:hover {
+background: #003d9b;
+}
+
+.signin-button:disabled {
+background: #D1D5DB;
+cursor: not-allowed;
+}
+
+.register-link {
+text-align: center;
+margin-top: 16px;
+font-size: 12px;
+}
+
+.register-link a {
+color: #0052cc;
+text-decoration: none;
+transition: text-decoration 0.3s ease;
+}
+
+.register-link a:hover {
+text-decoration: underline;
+}
+
+.error-message {
+background: #fee;
+color: #c00;
+padding: 12px;
+border-radius: 6px;
+font-size: 13px;
+margin-bottom: 16px;
+display: none;
+}
+
+.error-message.show {
+display: block;
+}
+
+.branding-content {
+max-width: 500px;
+}
+
+.branding-content h1 {
+font-size: 32px;
+font-weight: 700;
+margin: 0 0 24px 0;
+}
+
+.branding-content p {
+margin: 0 0 24px 0;
+font-size: 18px;
+line-height: 1.5;
+}
+
+.branding-description {
+border-left: 2px solid rgba(255, 255, 255, 0.3);
+padding-left: 16px;
+margin-bottom: 32px;
+}
+
+.branding-description p {
+font-size: 16px;
+margin: 0;
+}
+
+.features-list {
+list-style: none;
+padding: 0;
+margin: 0;
+}
+
+.features-list li {
+display: flex;
+align-items: center;
+gap: 12px;
+margin-bottom: 16px;
+font-size: 16px;
+}
+
+.features-list li::before {
+content: "✓";
+width: 24px;
+height: 24px;
+background: rgba(255, 255, 255, 0.3);
+border-radius: 50%;
+display: flex;
+align-items: center;
+justify-content: center;
+flex-shrink: 0;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+.login-container {
+    flex-direction: column;
+}
+
+.branding-panel {
+    display: none !important;
+}
+
+.form-panel {
+    flex: 1;
+    justify-content: flex-start;
+    padding-top: 40px;
+}
+
+.mobile-logo {
+    display: block;
+    text-align: center;
+    margin-bottom: 32px;
+}
+
+.mobile-logo h1 {
+    font-size: 24px;
+    font-weight: 700;
+    color: #0052cc;
+    margin: 0;
+}
+}
