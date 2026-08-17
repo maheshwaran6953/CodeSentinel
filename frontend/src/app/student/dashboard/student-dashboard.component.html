@@ -1,0 +1,211 @@
+<div class="dashboard-wrapper">
+  <!-- Top Navigation Header -->
+  <header class="top-nav">
+    <div class="brand-logo">
+      <span class="brand-sentinel">Code</span><span class="brand-blue">Sentinel</span>
+    </div>
+    
+    <div class="user-profile-menu">
+      <div class="avatar-circle">
+        {{ userInitials }}
+      </div>
+      <div class="user-info">
+        <span class="user-name">{{ userNameShort }}</span>
+      </div>
+      <button (click)="logout()" class="btn-logout" title="Logout">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+          <polyline points="16 17 21 12 16 7"></polyline>
+          <line x1="21" y1="12" x2="9" y2="12"></line>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Dashboard Content -->
+  <main class="main-container">
+    <div class="dashboard-content" *ngIf="dashboardData">
+      <!-- Title Section -->
+      <div class="header-section">
+        <h1 class="page-title">Dashboard</h1>
+        <p class="page-subtitle">Your integrity overview</p>
+      </div>
+
+      <!-- Linked Repository Card -->
+      <div class="card repo-card">
+        <div class="repo-info">
+          <div class="github-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+            </svg>
+          </div>
+          <span class="repo-name">{{ dashboardData.repository.name }}</span>
+        </div>
+        <div class="repo-actions">
+          <div class="status-linked">
+            <span class="status-dot"></span>
+            <span>Linked</span>
+          </div>
+          <button class="btn-primary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+            </svg>
+            <span>Link Repository</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Hero Authenticity Card -->
+      <div class="card authenticity-card">
+        <div class="authenticity-metrics">
+          <span class="metric-label">Authenticity</span>
+          <div class="metric-value">{{ dashboardData.authenticity_score }}%</div>
+          <div class="metric-status" [ngClass]="dashboardData.authenticity_level.toLowerCase()">
+            {{ dashboardData.authenticity_level }}
+          </div>
+        </div>
+
+        <div class="authenticity-gauge-wrapper">
+          <div class="gauge-container">
+            <svg class="gauge-svg" viewBox="0 0 120 120">
+              <!-- Background Circle -->
+              <circle class="gauge-bg" cx="60" cy="60" r="50"></circle>
+              <!-- Progress Circle (85%) -->
+              <circle class="gauge-progress" cx="60" cy="60" r="50" 
+                      [style.strokeDasharray]="314"
+                      [style.strokeDashoffset]="314 - (314 * dashboardData.authenticity_score) / 100">
+              </circle>
+            </svg>
+            <div class="gauge-text">{{ dashboardData.authenticity_score }}%</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Stats Grid -->
+      <div class="stats-grid">
+        <!-- Total Commits -->
+        <div class="card stat-card">
+          <div class="stat-header">
+            <span class="stat-title">Total Commits</span>
+            <div class="stat-icon icon-blue">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2">
+                <circle cx="12" cy="12" r="4"></circle>
+                <line x1="1.05" y1="12" x2="7" y2="12"></line>
+                <line x1="17" y1="12" x2="22.95" y2="12"></line>
+              </svg>
+            </div>
+          </div>
+          <div class="stat-value">{{ dashboardData.total_commits }}</div>
+        </div>
+
+        <!-- Average Score -->
+        <div class="card stat-card">
+          <div class="stat-header">
+            <span class="stat-title">Average Score</span>
+            <div class="stat-icon icon-gray">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#888888" stroke-width="2">
+                <line x1="18" y1="20" x2="18" y2="10"></line>
+                <line x1="12" y1="20" x2="12" y2="4"></line>
+                <line x1="6" y1="20" x2="6" y2="14"></line>
+              </svg>
+            </div>
+          </div>
+          <div class="stat-value">{{ dashboardData.avg_score }}%</div>
+        </div>
+
+        <!-- Pending Quizzes -->
+        <div class="card stat-card">
+          <div class="stat-header">
+            <span class="stat-title">Pending Quizzes</span>
+            <div class="stat-icon icon-gray">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#888888" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+              </svg>
+            </div>
+          </div>
+          <div class="stat-value">{{ dashboardData.pending_quizzes }}</div>
+        </div>
+
+        <!-- Flagged Commits -->
+        <div class="card stat-card stat-card-highlight">
+          <div class="highlight-bar"></div>
+          <div class="stat-header">
+            <span class="stat-title">Flagged</span>
+            <div class="stat-icon icon-blue">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2">
+                <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+                <line x1="4" y1="22" x2="4" y2="15"></line>
+              </svg>
+            </div>
+          </div>
+          <div class="stat-value">{{ dashboardData.flagged_commits }}</div>
+        </div>
+      </div>
+
+      <!-- Recent Activity Table Section -->
+      <div class="card table-card">
+        <div class="table-header">
+          <h2 class="table-title">Recent Activity</h2>
+        </div>
+
+        <div class="table-responsive">
+          <table class="activity-table">
+            <thead>
+              <tr>
+                <th class="th-left">MESSAGE & SHA</th>
+                <th class="th-left">DATE</th>
+                <th class="th-center">LINES +/-</th>
+                <th class="th-center">SCORE</th>
+                <th class="th-center">STATUS</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let commit of dashboardData.recent_commits" class="table-row">
+                <!-- Message & SHA -->
+                <td class="td-left">
+                  <div class="commit-message">{{ commit.message }}</div>
+                  <div class="commit-sha">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#888888" stroke-width="2">
+                      <circle cx="12" cy="12" r="4"></circle>
+                      <line x1="1.05" y1="12" x2="7" y2="12"></line>
+                      <line x1="17" y1="12" x2="22.95" y2="12"></line>
+                    </svg>
+                    <span>{{ commit.sha }}</span>
+                  </div>
+                </td>
+
+                <!-- Date -->
+                <td class="td-left td-date">
+                  {{ commit.date }}
+                </td>
+
+                <!-- Lines Added/Removed -->
+                <td class="td-center td-lines">
+                  +{{ commit.lines_added }}
+                </td>
+
+                <!-- Score Pill -->
+                <td class="td-center">
+                  <span class="score-pill" [ngClass]="commit.score >= 80 ? 'score-high' : 'score-low'">
+                    {{ commit.score }}%
+                  </span>
+                </td>
+
+                <!-- Status Pill -->
+                <td class="td-center">
+                  <span class="status-pill" [ngClass]="'status-' + commit.status">
+                    <span class="status-indicator-dot"></span>
+                    <span class="capitalize">{{ commit.status }}</span>
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
