@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Observable, of } from 'rxjs';
 import { StudentDashboardData } from '../models/student.model';
+import { Repository } from '../models/repository.model';
 
 @Injectable({
   providedIn: 'root'
@@ -46,5 +47,17 @@ export class StudentService {
    */
   getDashboardData(): Observable<StudentDashboardData> {
     return of(this.mockDashboardData);
+  }
+
+  /**
+   * Update Linked Repository details
+   */
+  updateLinkedRepository(repo: Repository): void {
+    this.mockDashboardData.repository = {
+      name: repo.fullName,
+      url: repo.url,
+      linked_at: new Date().toISOString().split('T')[0],
+      is_linked: true
+    };
   }
 }

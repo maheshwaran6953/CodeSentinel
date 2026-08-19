@@ -1,0 +1,344 @@
+<div class="linking-wrapper">
+  <!-- Header Bar -->
+  <header class="linking-header">
+    <button (click)="currentStep === 1 ? cancel() : (currentStep === 2 ? goBackToSelection() : goBackFromLinking())" class="btn-nav">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="15 18 9 12 15 6"></polyline>
+      </svg>
+      <span>Back</span>
+    </button>
+    <h1 class="header-title">Link Repository</h1>
+    <button (click)="cancel()" class="btn-nav btn-close">Close</button>
+  </header>
+
+  <!-- Progress Bar (Top) -->
+  <div class="progress-bar-container">
+    <div class="progress-bar-fill" [style.width.%]="currentStep === 1 ? 33 : (currentStep === 2 ? 66 : (webhookStatus?.status === 'completed' ? 100 : registrationProgress))"></div>
+  </div>
+
+  <!-- Step 1: Repository Selection -->
+  <main class="step-container" *ngIf="currentStep === 1">
+    <div class="step-content">
+      <div class="step-header">
+        <span class="step-label">Step 1 of 3: Select Repository</span>
+        <h2 class="step-title">Select Your Repository</h2>
+        <p class="step-desc">Choose the repository you want to link for automated code analysis and policy enforcement.</p>
+      </div>
+
+      <!-- Search Input Box -->
+      <div class="search-box">
+        <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input 
+          type="text" 
+          class="search-input" 
+          placeholder="Search repositories..." 
+          [(ngModel)]="searchQuery" 
+          (ngModelChange)="searchRepositories($event)"
+        />
+        <button *ngIf="searchQuery" (click)="clearSearch()" class="clear-btn" title="Clear">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Error State -->
+      <div class="error-banner" *ngIf="error">
+        <span>{{ error }}</span>
+      </div>
+
+      <!-- Loading State -->
+      <div class="loading-state" *ngIf="isLoading">
+        <div class="spinner"></div>
+        <span>Loading your repositories...</span>
+      </div>
+
+      <!-- Repository List -->
+      <div class="repo-list" *ngIf="!isLoading">
+        <!-- Empty Search Result -->
+        <div class="empty-state" *ngIf="filteredRepositories.length === 0">
+          <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#888888" stroke-width="1.5">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <p>No repositories found matching "{{ searchQuery }}"</p>
+        </div>
+
+        <!-- Repo Items -->
+        <div 
+          *ngFor="let repo of filteredRepositories" 
+          class="repo-card" 
+          [ngClass]="{
+            'selected': selectedRepository?.id === repo.id,
+            'archived': repo.isArchived
+          }"
+          (click)="selectRepository(repo)"
+        >
+          <!-- Radio / Check Icon -->
+          <div class="select-indicator">
+            <svg *ngIf="selectedRepository?.id === repo.id" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="#0A84FF">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+            </svg>
+            <svg *ngIf="selectedRepository?.id !== repo.id && !repo.isArchived" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#38383A" stroke-width="2">
+              <circle cx="12" cy="12" r="9"></circle>
+            </svg>
+            <svg *ngIf="repo.isArchived" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#888888" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+          </div>
+
+          <!-- Repo Header -->
+          <div class="repo-main-info">
+            <div class="github-badge-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+              </svg>
+            </div>
+            <div class="repo-text">
+              <div class="repo-title-row">
+                <h3 class="repo-name">{{ repo.fullName }}</h3>
+                <span class="badge" [ngClass]="repo.isArchived ? 'badge-archived' : (repo.isPrivate ? 'badge-private' : 'badge-public')">
+                  {{ repo.isArchived ? 'Archived' : (repo.isPrivate ? 'Private' : 'Public') }}
+                </span>
+              </div>
+              <p class="repo-desc">{{ repo.description }}</p>
+            </div>
+          </div>
+
+          <!-- Repo Meta Footer -->
+          <div class="repo-meta">
+            <div class="meta-item">
+              <span class="lang-dot" [ngClass]="'lang-' + repo.language.toLowerCase()"></span>
+              <span>{{ repo.language }}</span>
+            </div>
+            <div class="meta-item">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+              </svg>
+              <span>{{ repo.stars }}</span>
+            </div>
+            <div class="meta-item">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="6" y1="3" x2="6" y2="15"></line>
+                <circle cx="18" cy="6" r="3"></circle>
+                <circle cx="6" cy="18" r="3"></circle>
+                <path d="M18 9a9 9 0 0 1-9 9"></path>
+              </svg>
+              <span>{{ repo.forks }}</span>
+            </div>
+            <span class="last-updated">{{ repo.lastUpdated }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fixed Bottom Action Bar -->
+    <div class="bottom-action-bar">
+      <div class="action-btn-group">
+        <button (click)="cancel()" class="btn-secondary">Cancel</button>
+        <button (click)="proceedToReview()" class="btn-primary" [disabled]="!selectedRepository">Next</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- Step 2: Review and Confirm -->
+  <main class="step-container" *ngIf="currentStep === 2">
+    <div class="step-content">
+      <div class="step-header">
+        <span class="step-label">Step 2 of 3: Review Details</span>
+        <h2 class="step-title">Review Repository Details</h2>
+        <p class="step-desc">Verify the information below before linking.</p>
+      </div>
+
+      <!-- Selected Repo Details Card -->
+      <div class="detail-card gradient-card" *ngIf="selectedRepository">
+        <div class="detail-header">
+          <div class="github-circle-icon">
+            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+            </svg>
+          </div>
+          <div class="detail-header-text">
+            <h3 class="detail-repo-name">{{ selectedRepository.fullName }}</h3>
+            <a [href]="selectedRepository.url" target="_blank" class="detail-repo-url">{{ selectedRepository.url }}</a>
+          </div>
+        </div>
+
+        <div class="detail-divider"></div>
+
+        <div class="detail-body">
+          <div class="detail-field">
+            <span class="field-label">Description</span>
+            <p class="field-value">{{ selectedRepository.description }}</p>
+          </div>
+          
+          <div class="detail-grid">
+            <div class="detail-field">
+              <span class="field-label">Branches</span>
+              <p class="field-value icon-text">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="6" y1="3" x2="6" y2="15"></line>
+                  <circle cx="18" cy="6" r="3"></circle>
+                  <circle cx="6" cy="18" r="3"></circle>
+                  <path d="M18 9a9 9 0 0 1-9 9"></path>
+                </svg>
+                {{ selectedRepository.branches }} Active
+              </p>
+            </div>
+            <div class="detail-field">
+              <span class="field-label">Last Updated</span>
+              <p class="field-value">{{ selectedRepository.lastUpdated }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Webhook Information Section -->
+      <div class="detail-card info-card">
+        <div class="card-icon text-yellow">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFD60A" stroke-width="2">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+          </svg>
+        </div>
+        <div class="card-info-content">
+          <h4 class="info-title">Webhook Configuration</h4>
+          <p class="info-desc">A read-only webhook will be created in this repository to notify CodeSentinel of new commits and pull requests.</p>
+          <div class="status-chip warning-chip">
+            <span class="chip-dot"></span>
+            <span>Status: To be configured</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Security & Permissions Section -->
+      <div class="detail-card info-card">
+        <div class="card-icon text-green">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#30D158" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+        </div>
+        <div class="card-info-content">
+          <h4 class="info-title">Security & Permissions</h4>
+          <ul class="permission-list">
+            <li>Read-only access to source code</li>
+            <li>Read access to pull requests</li>
+            <li>Read access to commit history</li>
+          </ul>
+          <p class="security-note">CodeSentinel will never modify your repository or source code.</p>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="action-btn-group review-actions">
+        <button (click)="goBackToSelection()" class="btn-secondary">Back</button>
+        <button (click)="proceedToLinking()" class="btn-primary flex-2">Link Repository</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- Step 3: Webhook Registration & Success -->
+  <main class="step-container" *ngIf="currentStep === 3">
+    <div class="step-content text-center-content">
+      <!-- Registration Progress (Installing) -->
+      <div class="registration-state" *ngIf="webhookStatus?.status === 'installing'">
+        <div class="progress-header-text">
+          <span class="step-label">Step 3 of 3: Registering Webhook</span>
+          <span class="progress-percent">{{ registrationProgress }}%</span>
+        </div>
+        
+        <div class="progress-bar-bg">
+          <div class="progress-bar-active" [style.width.%]="registrationProgress"></div>
+        </div>
+
+        <div class="installing-spinner-box">
+          <div class="spinner spinner-lg"></div>
+          <h2 class="installing-title">Setting up GitHub Webhook...</h2>
+          <p class="installing-desc">CodeSentinel is establishing a secure connection to your repository.</p>
+        </div>
+      </div>
+
+      <!-- Registration Success State -->
+      <div class="success-state" *ngIf="webhookStatus?.status === 'completed'">
+        <div class="progress-header-text">
+          <span class="step-label">Step 3 of 3: Registration Successful</span>
+          <span class="progress-percent">100%</span>
+        </div>
+
+        <div class="success-icon-wrapper">
+          <svg class="success-check-icon" xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="#30D158">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+          </svg>
+        </div>
+
+        <h1 class="success-title">Repository Linked Successfully!</h1>
+        <p class="success-desc">
+          Your repository is now being monitored. CodeSentinel will automatically analyze incoming commits and pull requests for potential issues.
+        </p>
+
+        <!-- Summary Card -->
+        <div class="detail-card summary-card" *ngIf="selectedRepository">
+          <div class="summary-card-header">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0A84FF" stroke-width="2">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+            </svg>
+            <span class="summary-card-title">Repository Summary</span>
+          </div>
+
+          <div class="summary-rows">
+            <div class="summary-row">
+              <span class="summary-label">Name</span>
+              <span class="summary-value code-font">{{ selectedRepository.fullName }}</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-label">Webhook Status</span>
+              <div class="status-chip success-chip">
+                <span class="chip-dot"></span>
+                <span>Active</span>
+              </div>
+            </div>
+            <div class="summary-row">
+              <span class="summary-label">Monitoring</span>
+              <span class="summary-value">Real-time enabled</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Finish Button -->
+        <div class="action-btn-group success-action">
+          <button (click)="completeLinking()" class="btn-primary btn-full">
+            <span>Go to Dashboard</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+              <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Registration Error State -->
+      <div class="error-state" *ngIf="webhookStatus?.status === 'failed'">
+        <div class="error-icon-wrapper">
+          <svg class="error-alert-icon" xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="#FF3B30">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+          </svg>
+        </div>
+
+        <h1 class="error-title">Webhook Installation Failed</h1>
+        <p class="error-desc">{{ webhookStatus?.message }}</p>
+        <p class="error-detail" *ngIf="webhookStatus?.errorMessage">{{ webhookStatus?.errorMessage }}</p>
+
+        <div class="action-btn-group error-actions">
+          <button (click)="goBackFromLinking()" class="btn-secondary">Back</button>
+          <button (click)="retryWebhookRegistration()" class="btn-primary">Retry Registration</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>

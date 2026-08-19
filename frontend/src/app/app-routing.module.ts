@@ -2,6 +2,7 @@ import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 import { LoginComponent } from './auth/login.component';
 import { StudentDashboardComponent } from './student/dashboard/student-dashboard.component';
+import { RepositoryLinkingComponent } from './student/repository-linking/repository-linking.component';
 import { AuthGuard } from './guards/auth.guard';
 import { StudentGuard } from './guards/student.guard';
 
@@ -15,6 +16,7 @@ const routes: Routes = [
     canActivate: [AuthGuard, StudentGuard],
     children: [
       { path: 'dashboard', component: StudentDashboardComponent },
+      { path: 'repository-linking', component: RepositoryLinkingComponent },
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' }
     ]
   },
