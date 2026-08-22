@@ -4,11 +4,13 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { StudentDashboardComponent } from './dashboard/student-dashboard.component';
 import { RepositoryLinkingComponent } from './repository-linking/repository-linking.component';
+import { QuizInterrogationComponent } from './quiz-interrogation/quiz-interrogation.component';
 
 @NgModule({
   declarations: [
     StudentDashboardComponent,
-    RepositoryLinkingComponent
+    RepositoryLinkingComponent,
+    QuizInterrogationComponent
   ],
   imports: [
     CommonModule,
@@ -17,7 +19,8 @@ import { RepositoryLinkingComponent } from './repository-linking/repository-link
   ],
   exports: [
     StudentDashboardComponent,
-    RepositoryLinkingComponent
+    RepositoryLinkingComponent,
+    QuizInterrogationComponent
   ]
 })
 export class StudentModule { }

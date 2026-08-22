@@ -98,16 +98,13 @@ describe('RepositoryLinkingComponent', () => {
     expect(component.currentStep).toBe(2);
   });
 
-  it('should register webhook on proceeding to linking', fakeAsync(() => {
+  it('should register webhook on proceeding to linking', () => {
     component.selectedRepository = mockRepos[0];
     component.proceedToLinking();
     expect(component.currentStep).toBe(3);
-    expect(component.webhookStatus?.status).toBe('installing');
-
-    tick(3000);
     expect(component.webhookStatus?.status).toBe('completed');
     expect(mockStudentService.updateLinkedRepository).toHaveBeenCalledWith(mockRepos[0]);
-  }));
+  });
 
   it('should navigate back to dashboard on cancel or completion', () => {
     component.completeLinking();

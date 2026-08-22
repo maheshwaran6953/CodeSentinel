@@ -12,7 +12,7 @@ export class StudentService {
     authenticity_level: 'High',
     total_commits: 12,
     avg_score: 82,
-    pending_quizzes: 0,
+    pending_quizzes: 3,
     flagged_commits: 1,
     repository: {
       name: 'maheshwaran6953/capstone-project',

@@ -3,6 +3,7 @@ import { RouterModule, Routes } from '@angular/router';
 import { LoginComponent } from './auth/login.component';
 import { StudentDashboardComponent } from './student/dashboard/student-dashboard.component';
 import { RepositoryLinkingComponent } from './student/repository-linking/repository-linking.component';
+import { QuizInterrogationComponent } from './student/quiz-interrogation/quiz-interrogation.component';
 import { AuthGuard } from './guards/auth.guard';
 import { StudentGuard } from './guards/student.guard';
 
@@ -17,6 +18,7 @@ const routes: Routes = [
     children: [
       { path: 'dashboard', component: StudentDashboardComponent },
       { path: 'repository-linking', component: RepositoryLinkingComponent },
+      { path: 'quiz-interrogation', component: QuizInterrogationComponent },
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' }
     ]
   },

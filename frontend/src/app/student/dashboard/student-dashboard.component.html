@@ -115,18 +115,19 @@
         </div>
 
         <!-- Pending Quizzes -->
-        <div class="card stat-card">
+        <div class="card stat-card stat-card-clickable" routerLink="/student/quiz-interrogation" title="Click to start Quiz Interrogation">
           <div class="stat-header">
             <span class="stat-title">Pending Quizzes</span>
-            <div class="stat-icon icon-gray">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#888888" stroke-width="2">
+            <div class="stat-icon icon-blue">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0A84FF" stroke-width="2">
                 <circle cx="12" cy="12" r="10"></circle>
                 <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
                 <line x1="12" y1="17" x2="12.01" y2="17"></line>
               </svg>
             </div>
           </div>
-          <div class="stat-value">{{ dashboardData.pending_quizzes }}</div>
+          <div class="stat-value text-blue">{{ dashboardData.pending_quizzes }}</div>
+          <div class="stat-action-link">Start Interrogation &rarr;</div>
         </div>
 
         <!-- Flagged Commits -->

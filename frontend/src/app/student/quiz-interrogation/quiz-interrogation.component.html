@@ -1,0 +1,231 @@
+<div class="quiz-wrapper">
+  <!-- Top Navigation Header -->
+  <header class="quiz-sticky-header">
+    <div class="header-top-row">
+      <button (click)="handleBack()" class="btn-back" title="Back to Dashboard">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+        <span>Back</span>
+      </button>
+      <h1 class="header-title">Integrity Quiz Interrogation</h1>
+      <div class="question-counter" *ngIf="!isCompleted && quizSession">
+        Question {{ currentQuestionIndex + 1 }} of {{ quizSession.totalQuestions }}
+      </div>
+      <div class="question-counter" *ngIf="isCompleted">
+        Completed
+      </div>
+    </div>
+    
+    <!-- Top Progress Bar -->
+    <div class="progress-bar-bg">
+      <div class="progress-bar-active" [style.width.%]="progressPercentage"></div>
+    </div>
+  </header>
+
+  <!-- Loading State -->
+  <div class="loading-container" *ngIf="isLoading">
+    <div class="spinner spinner-lg"></div>
+    <span>Loading quiz interrogation questions...</span>
+  </div>
+
+  <!-- Draft Saved Toast -->
+  <div class="toast-banner" *ngIf="showDraftToast">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#30D158" stroke-width="2">
+      <polyline points="20 6 9 17 4 12"></polyline>
+    </svg>
+    <span>Draft saved successfully</span>
+  </div>
+
+  <!-- Main Active Question Container -->
+  <main class="quiz-content-container" *ngIf="!isLoading && !isCompleted && currentQuestion">
+    <!-- Commit Context Banner Card -->
+    <div class="card commit-card">
+      <div class="commit-card-header">
+        <div class="commit-sha-group">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8E8E93" stroke-width="2">
+            <circle cx="12" cy="12" r="4"></circle>
+            <line x1="1.05" y1="12" x2="7" y2="12"></line>
+            <line x1="17" y1="12" x2="22.95" y2="12"></line>
+          </svg>
+          <span class="commit-sha-code">{{ currentQuestion.commitSha }}</span>
+        </div>
+        <span class="review-status-chip">Under Review</span>
+      </div>
+
+      <div class="commit-details">
+        <h3 class="commit-message-title">{{ currentQuestion.commitMessage }}</h3>
+        <p class="commit-meta-text">
+          {{ currentQuestion.commitTimeAgo }} in repository '{{ currentQuestion.commitRepo }}'
+        </p>
+      </div>
+    </div>
+
+    <!-- Question Card -->
+    <div class="card question-card">
+      <div class="question-header">
+        <svg class="question-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0A84FF" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+          <line x1="12" y1="17" x2="12.01" y2="17"></line>
+        </svg>
+        <h2 class="question-title-text">{{ currentQuestion.questionText }}</h2>
+      </div>
+
+      <!-- Code Snippet Box -->
+      <div class="code-snippet-box" *ngIf="currentQuestion.codeSnippet">
+        <pre class="code-pre"><code>{{ currentQuestion.codeSnippet }}</code></pre>
+      </div>
+    </div>
+
+    <!-- Answer Explanation Input Card -->
+    <div class="answer-section">
+      <div class="answer-label-row">
+        <label class="answer-label" for="answerText">Your Explanation</label>
+        <span class="char-counter" [ngClass]="{'char-counter-error': charCount < currentQuestion.minCharCount && charCount > 0}">
+          {{ charCount }} / {{ currentQuestion.maxCharCount }}
+        </span>
+      </div>
+
+      <div class="textarea-wrapper">
+        <textarea
+          id="answerText"
+          class="answer-textarea"
+          [disabled]="isGrading || showFeedback"
+          placeholder="Provide a detailed technical reasoning for this implementation choice..."
+          [(ngModel)]="answerText"
+          rows="6"
+        ></textarea>
+      </div>
+
+      <div class="validation-warning" *ngIf="charCount > 0 && charCount < currentQuestion.minCharCount">
+        <span>Minimum {{ currentQuestion.minCharCount }} characters required for submission ({{ currentQuestion.minCharCount - charCount }} more needed).</span>
+      </div>
+    </div>
+
+    <!-- LLM Grading Overlay Loading -->
+    <div class="card grading-overlay-card" *ngIf="isGrading">
+      <div class="spinner spinner-lg"></div>
+      <div class="grading-overlay-text">
+        <h3 class="grading-title">Analyzing your explanation with AI...</h3>
+        <p class="grading-sub">CodeSentinel LLM is evaluating your technical reasoning for authenticity.</p>
+      </div>
+    </div>
+
+    <!-- Feedback Card (After LLM Grading) -->
+    <div class="card feedback-card" *ngIf="showFeedback && currentResult" [ngClass]="'feedback-' + currentResult.status">
+      <div class="feedback-card-header">
+        <div class="feedback-badge-score">
+          <span class="score-number">{{ currentResult.score }}%</span>
+          <span class="score-label">Authenticity Score</span>
+        </div>
+        <div class="feedback-status-pill" [ngClass]="currentResult.status">
+          {{ currentResult.status === 'passed' ? 'Passed' : (currentResult.status === 'needs_improvement' ? 'Needs Improvement' : 'Failed') }}
+        </div>
+      </div>
+
+      <p class="feedback-message-text">{{ currentResult.feedback }}</p>
+    </div>
+  </main>
+
+  <!-- Quiz Completed Overview Screen -->
+  <main class="quiz-content-container" *ngIf="!isLoading && isCompleted">
+    <div class="card completion-card">
+      <div class="completion-header">
+        <div class="completion-icon-circle">
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="#30D158">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+          </svg>
+        </div>
+        <h1 class="completion-title">Quiz Interrogation Complete!</h1>
+        <p class="completion-sub">You have answered all commit interrogation questions. Your explanations have been evaluated by CodeSentinel AI.</p>
+      </div>
+
+      <!-- Score Summary Grid -->
+      <div class="score-summary-grid">
+        <div class="summary-score-box">
+          <span class="summary-score-value text-blue">{{ avgScore }}%</span>
+          <span class="summary-score-label">Average Score</span>
+        </div>
+        <div class="summary-score-box">
+          <span class="summary-score-value text-green">{{ totalScore }}</span>
+          <span class="summary-score-label">Total Points</span>
+        </div>
+      </div>
+
+      <!-- Questions Breakdown Table -->
+      <div class="breakdown-section" *ngIf="quizSession">
+        <h3 class="breakdown-title">Interrogation Breakdown</h3>
+        <div class="breakdown-list">
+          <div *ngFor="let q of quizSession.questions; let i = index" class="breakdown-item">
+            <div class="breakdown-item-header">
+              <span class="breakdown-q-num">Q{{ i + 1 }}</span>
+              <span class="breakdown-q-title">{{ q.questionText }}</span>
+            </div>
+            <div class="breakdown-item-footer" *ngIf="quizSession.answers[q.id]">
+              <span class="breakdown-score" [ngClass]="(quizSession.answers[q.id].result?.score || 0) >= 80 ? 'text-green' : 'text-yellow'">
+                Score: {{ quizSession.answers[q.id].result?.score }}%
+              </span>
+              <p class="breakdown-feedback">{{ quizSession.answers[q.id].result?.feedback }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="completion-actions">
+        <button (click)="handleBack()" class="btn-primary btn-full">
+          <span>Back to Dashboard</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+            <polyline points="12 5 19 12 12 19"></polyline>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <!-- Fixed Bottom Action Bar -->
+  <div class="fixed-bottom-bar" *ngIf="!isLoading && !isCompleted">
+    <div class="action-btn-group">
+      <button 
+        (click)="saveDraft()" 
+        class="btn-secondary" 
+        [disabled]="isGrading || isSavingDraft || !answerText"
+      >
+        {{ isSavingDraft ? 'Saving...' : 'Save as Draft' }}
+      </button>
+
+      <button 
+        *ngIf="!showFeedback"
+        (click)="submitAnswer()" 
+        class="btn-primary flex-2" 
+        [disabled]="!isValidAnswer || isGrading"
+      >
+        {{ isGrading ? 'Grading...' : 'Submit Answer' }}
+      </button>
+
+      <button 
+        *ngIf="showFeedback"
+        (click)="nextQuestion()" 
+        class="btn-primary flex-2"
+      >
+        <span>Next Question</span>
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Exit Confirmation Dialog Modal -->
+  <div class="modal-backdrop" *ngIf="showConfirmExitModal">
+    <div class="modal-card">
+      <h3 class="modal-title">Unsaved Progress</h3>
+      <p class="modal-desc">You have an unsubmitted answer. Are you sure you want to leave the quiz?</p>
+      <div class="modal-actions">
+        <button (click)="cancelExit()" class="btn-secondary">Cancel</button>
+        <button (click)="confirmExit()" class="btn-danger">Leave Quiz</button>
+      </div>
+    </div>
+  </div>
+</div>
