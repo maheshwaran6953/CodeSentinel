@@ -20,7 +20,9 @@
               "zone.js"
             ],
             "tsConfig": "tsconfig.app.json",
-            "assets": [],
+            "assets": [
+              "src/config.js"
+            ],
             "styles": [
               "src/styles.css"
             ],
@@ -36,8 +38,8 @@
                 },
                 {
                   "type": "anyComponentStyle",
-                  "maximumWarning": "4kb",
-                  "maximumError": "8kb"
+                  "maximumWarning": "10kb",
+                  "maximumError": "12kb"
                 }
               ],
               "outputHashing": "all"
@@ -66,7 +68,8 @@
           "builder": "@angular-devkit/build-angular:karma",
           "options": {
             "polyfills": [
-              "zone.js"
+              "zone.js",
+              "zone.js/testing"
             ],
             "tsConfig": "tsconfig.spec.json",
             "assets": [],
@@ -80,6 +83,6 @@
     }
   },
   "cli": {
-    "analytics": "dfada32a-3372-4bba-a473-ae29cbf31fbf"
+    "analytics": false
   }
 }

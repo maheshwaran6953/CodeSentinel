@@ -9,7 +9,7 @@ export interface Repository {
   forks: number;
   url: string;
   lastUpdated: string;
-  branches: number;
+  branches: number | null;
   isPrivate: boolean;
   isArchived?: boolean;
 }

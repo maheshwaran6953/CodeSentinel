@@ -4,6 +4,7 @@ import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { RepositoryService } from '../../services/repository.service';
 import { StudentService } from '../../services/student.service';
+import { AuthService } from '../../services/auth.service';
 import { Repository, WebhookStatus } from '../../models/repository.model';
 
 @Component({
@@ -36,7 +37,8 @@ export class RepositoryLinkingComponent implements OnInit, OnDestroy {
   constructor(
     private repositoryService: RepositoryService,
     private studentService: StudentService,
-    private router: Router
+    private router: Router,
+    public auth: AuthService
   ) {}
 
   ngOnInit(): void {
@@ -69,7 +71,7 @@ export class RepositoryLinkingComponent implements OnInit, OnDestroy {
           this.isLoading = false;
         },
         error: (err) => {
-          this.error = 'Failed to load repositories';
+          this.error = err.error?.message || 'Failed to load repositories';
           this.isLoading = false;
         }
       });
@@ -174,7 +176,7 @@ export class RepositoryLinkingComponent implements OnInit, OnDestroy {
           this.webhookStatus = status;
           this.isLoading = false;
           // Update linked repository in StudentService
-          if (this.selectedRepository) {
+          if (this.selectedRepository && status.status === 'completed') {
             this.studentService.updateLinkedRepository(this.selectedRepository);
           }
         },
@@ -186,7 +188,7 @@ export class RepositoryLinkingComponent implements OnInit, OnDestroy {
             status: 'failed',
             message: 'Webhook registration failed',
             errorCode: 'ERR_WEBHOOK_INSTALL',
-            errorMessage: err.message || 'GitHub API error'
+            errorMessage: err.error?.message || 'GitHub API error'
           };
           this.isLoading = false;
         }
@@ -203,7 +205,7 @@ export class RepositoryLinkingComponent implements OnInit, OnDestroy {
     }
 
     this.progressInterval = setInterval(() => {
-      progress += Math.floor(Math.random() * 20) + 10;
+      progress += 10;
       if (progress >= 90) {
         progress = 90;
         clearInterval(this.progressInterval);
@@ -239,7 +241,7 @@ export class RepositoryLinkingComponent implements OnInit, OnDestroy {
    * Finish linking and return to dashboard
    */
   completeLinking(): void {
-    if (this.selectedRepository) {
+    if (this.selectedRepository && this.webhookStatus?.status === 'completed') {
       this.studentService.updateLinkedRepository(this.selectedRepository);
     }
     this.router.navigate(['/student/dashboard']);

@@ -1,0 +1,8 @@
+node_modules
+.venv
+.env
+.env.*
+dist
+ml/models
+**/__pycache__
+coverage

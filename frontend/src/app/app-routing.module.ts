@@ -6,9 +6,13 @@ import { RepositoryLinkingComponent } from './student/repository-linking/reposit
 import { QuizInterrogationComponent } from './student/quiz-interrogation/quiz-interrogation.component';
 import { AuthGuard } from './guards/auth.guard';
 import { StudentGuard } from './guards/student.guard';
+import { FacultyGuard } from './guards/faculty.guard';
+import { FacultyComponent } from './faculty/faculty.component';
+import { CallbackComponent } from './auth/callback.component';
 
 const routes: Routes = [
   { path: 'login', component: LoginComponent },
+  { path: 'auth/callback', component: CallbackComponent },
   { path: '', redirectTo: '/login', pathMatch: 'full' },
   
   // Student routes (protected)
@@ -26,9 +30,10 @@ const routes: Routes = [
   // Faculty routes (protected)
   {
     path: 'faculty',
-    canActivate: [AuthGuard],
+    canActivate: [AuthGuard, FacultyGuard],
     children: [
-      // Dashboard and other faculty pages will go here
+      { path: 'cohort', component: FacultyComponent },
+      { path: '', redirectTo: 'cohort', pathMatch: 'full' }
     ]
   },
 

@@ -23,6 +23,8 @@
         <span class="step-label">Step 1 of 3: Select Repository</span>
         <h2 class="step-title">Select Your Repository</h2>
         <p class="step-desc">Choose the repository you want to link for automated code analysis and policy enforcement.</p>
+        <button class="btn-secondary" (click)="auth.installApp()">Install / configure GitHub App access</button>
+        <button class="btn-secondary" (click)="loadRepositories()">Refresh repositories</button>
       </div>
 
       <!-- Search Input Box -->
@@ -187,7 +189,7 @@
                   <circle cx="6" cy="18" r="3"></circle>
                   <path d="M18 9a9 9 0 0 1-9 9"></path>
                 </svg>
-                {{ selectedRepository.branches }} Active
+                {{ selectedRepository.branches ?? 'Not loaded' }}
               </p>
             </div>
             <div class="detail-field">
@@ -208,7 +210,7 @@
         </div>
         <div class="card-info-content">
           <h4 class="info-title">Webhook Configuration</h4>
-          <p class="info-desc">A read-only webhook will be created in this repository to notify CodeSentinel of new commits and pull requests.</p>
+          <p class="info-desc">The installed GitHub App uses its configured webhook to notify CodeSentinel of pushes and pull requests. Your repository authorization will be verified.</p>
           <div class="status-chip warning-chip">
             <span class="chip-dot"></span>
             <span>Status: To be configured</span>
@@ -300,12 +302,12 @@
               <span class="summary-label">Webhook Status</span>
               <div class="status-chip success-chip">
                 <span class="chip-dot"></span>
-                <span>Active</span>
+                <span>Authorized; awaiting delivery</span>
               </div>
             </div>
             <div class="summary-row">
               <span class="summary-label">Monitoring</span>
-              <span class="summary-value">Real-time enabled</span>
+              <span class="summary-value">History sync queued</span>
             </div>
           </div>
         </div>

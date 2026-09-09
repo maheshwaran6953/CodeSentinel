@@ -1,0 +1,47 @@
+<div class="dashboard-wrapper">
+  <header class="top-nav"><div class="brand-logo">Code<span class="brand-blue">Sentinel</span> / Faculty</div><button class="btn-primary" (click)="auth.logout()">Sign out</button></header>
+  <main class="main-container"><div class="dashboard-content">
+    <div class="header-section"><h1 class="page-title">Authorship evidence</h1><p class="page-subtitle">Signals support review; they do not prove misconduct. Updates every 15 seconds.</p></div>
+    <p role="alert" *ngIf="error">{{error}} <button (click)="refresh()">Retry</button></p>
+    <p *ngIf="loading" role="status">Loading evidence...</p>
+    <section class="card panel" *ngIf="!selected">
+      <h2>Student cohort</h2><p *ngIf="!students.length">Students appear after their first GitHub sign in.</p>
+      <div class="table-responsive"><table class="activity-table"><thead><tr><th>Student</th><th>Active repositories</th><th>Commits</th><th>Authenticity indicator</th><th>Flagged</th></tr></thead>
+        <tbody><tr *ngFor="let s of students"><td><button class="text-button" (click)="openStudent(s.id)">{{s.name}} / {{s.github_login}}</button></td><td>{{s.repositories}}</td><td>{{s.commits}}</td><td>{{score(s.authenticity_score)}}</td><td>{{s.flagged}}</td></tr></tbody></table></div>
+    </section>
+    <ng-container *ngIf="selected">
+      <button class="btn-primary" (click)="selected=null;evidence=null">Back to cohort</button>
+      <section class="card panel"><h2>{{selected.student.name}}</h2>
+        <p *ngFor="let r of selected.repositories">{{r.full_name}} — {{r.active?'Authorized':'Access removed'}} · Last signed delivery: {{r.last_webhook_at ? (r.last_webhook_at | date:'medium') : 'Awaiting first delivery'}}</p>
+        <p *ngIf="!selected.repositories.length">No repository linked.</p>
+        <div class="table-responsive"><table class="activity-table"><thead><tr><th>Commit</th><th>Date</th><th>Changes</th><th>Authenticity / risk</th><th>Status</th></tr></thead>
+          <tbody><tr *ngFor="let c of selected.commits"><td><button class="text-button" (click)="openCommit(c.id)">{{c.message || 'Queued commit'}}</button><small>{{c.full_name}} · {{c.sha | slice:0:10}}</small></td><td>{{c.committed_at | date:'medium'}}</td><td>+{{c.additions}} / -{{c.deletions}}</td><td>{{score(c.authenticity_score)}} / {{score(c.risk_score)}}</td><td>{{c.status}} {{c.flagged?'· Flagged':''}}<small>Baseline: {{c.baseline || 'learning'}}</small></td></tr></tbody></table></div>
+      </section>
+    </ng-container>
+    <ng-container *ngIf="evidence">
+      <section class="card panel"><h2>{{evidence.commit.message}}</h2><p>{{evidence.commit.sha}}</p>
+        <p>Authenticity indicator {{score(evidence.commit.authenticity_score)}} · Risk {{score(evidence.commit.risk_score)}} · Quiz {{evidence.commit.quiz_status}}</p>
+        <p *ngIf="evidence.commit.error">{{evidence.commit.error}}</p>
+        <ul><li *ngFor="let reason of evidence.commit.reasons">{{reason}}</li></ul>
+        <button class="btn-primary" *ngIf="['failed','partial','queued'].includes(evidence.commit.status) || ['failed','pending'].includes(evidence.commit.quiz_status)" (click)="retry()">Retry failed work</button>
+        <details open><summary>Velocity evidence</summary><pre>{{evidence.commit.velocity | json}}</pre></details>
+        <details><summary>AST and model evidence</summary><pre>{{evidence.commit.stylometry | json}}</pre></details>
+        <details><summary>Included and excluded files</summary><pre>{{evidence.commit.files | json}}</pre></details>
+        <details><summary>Commit diff (bounded context)</summary><pre>{{evidence.commit.diff}}</pre></details>
+        <details><summary>Score calculation and history</summary><pre>{{evidence.commit.signals | json}}</pre><pre>{{evidence.scoreHistory | json}}</pre></details>
+      </section>
+      <section class="card panel"><h2>Technical interrogation</h2><p *ngIf="!evidence.questions.length">No questions available. Generation status: {{evidence.commit.quiz_status}}.</p>
+        <article *ngFor="let q of evidence.questions"><h3>{{q.ordinal+1}}. {{q.question_text}}</h3><p><strong>Rubric:</strong> {{q.rubric}}</p>
+          <p><strong>Answer {{q.is_draft?'(draft)':''}}:</strong> {{q.answer_text || 'Awaiting response'}}</p><p *ngIf="q.grading_error">{{q.grading_error}}</p>
+          <div *ngIf="q.result"><p>Understanding: {{q.result.score}}% · Confidence: {{q.result.confidence}}</p><p>{{q.result.explanation}}</p><details><summary>Rubric scores</summary><pre>{{q.result | json}}</pre></details></div>
+        </article>
+      </section>
+      <section class="card panel"><h2>Faculty review</h2><p>The original analysis remains recorded. Reviews annotate the evidence.</p>
+        <form (ngSubmit)="override()"><label>Classification <select [(ngModel)]="action" name="action"><option value="legitimate">Legitimate anomaly</option><option value="needs_review">Needs further review</option><option value="note">Add context</option></select></label>
+          <label>Reason <textarea [(ngModel)]="reason" name="reason" minlength="10" maxlength="2000" required rows="3" placeholder="Explain the migration, refactoring, collaboration or other context."></textarea></label>
+          <button class="btn-primary" [disabled]="reason.trim().length<10 || saving">{{saving?'Saving...':'Save review'}}</button></form>
+        <p role="status">{{notice}}</p><article *ngFor="let o of evidence.overrides"><strong>{{o.action}} · {{o.faculty_name}} · {{o.created_at | date:'medium'}}</strong><p>{{o.reason}}</p><details><summary>Original analysis at review time</summary><pre>{{o.original_analysis | json}}</pre></details></article>
+      </section>
+    </ng-container>
+  </div></main>
+</div>

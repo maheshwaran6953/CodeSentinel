@@ -1,5 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
+import { CommonModule } from '@angular/common';
+import { RouterTestingModule } from '@angular/router/testing';
 import { of } from 'rxjs';
 import { StudentDashboardComponent } from './student-dashboard.component';
 import { StudentService } from '../../services/student.service';
@@ -52,13 +54,16 @@ describe('StudentDashboardComponent', () => {
     });
 
     await TestBed.configureTestingModule({
+      imports: [CommonModule, RouterTestingModule],
       declarations: [StudentDashboardComponent],
       providers: [
         { provide: StudentService, useValue: mockStudentService },
-        { provide: AuthService, useValue: mockAuthService },
-        { provide: Router, useValue: mockRouter }
+        { provide: AuthService, useValue: mockAuthService }
       ]
     }).compileComponents();
+
+    mockRouter = TestBed.inject(Router) as jasmine.SpyObj<Router>;
+    spyOn(mockRouter, 'navigate').and.resolveTo(true);
 
     fixture = TestBed.createComponent(StudentDashboardComponent);
     component = fixture.componentInstance;

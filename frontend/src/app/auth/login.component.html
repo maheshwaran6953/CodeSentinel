@@ -111,7 +111,7 @@
             </div>
 
             <div class="forgot-password">
-              <a href="#">Forgot password?</a>
+              <a href="#" (click)="accountHelp($event)">Forgot password?</a>
             </div>
 
             <button type="submit" class="signin-button" [disabled]="isLoading">
@@ -119,7 +119,7 @@
             </button>
 
             <div class="register-link">
-              Don't have an account? <a href="#">Register here</a>
+              Don't have an account? <a href="#" (click)="accountHelp($event)">Request access</a>
             </div>
           </form>
         </div>

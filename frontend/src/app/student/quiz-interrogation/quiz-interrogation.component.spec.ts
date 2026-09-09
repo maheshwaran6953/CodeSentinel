@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { FormsModule } from '@angular/forms';
+import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { of } from 'rxjs';
 import { QuizInterrogationComponent } from './quiz-interrogation.component';
@@ -55,12 +56,12 @@ describe('QuizInterrogationComponent', () => {
     mockQuizService = jasmine.createSpyObj('QuizService', ['getQuizSession', 'submitAnswer', 'saveDraft']);
     mockRouter = jasmine.createSpyObj('Router', ['navigate']);
 
-    mockQuizService.getQuizSession.and.returnValue(of(mockSession));
+    mockQuizService.getQuizSession.and.returnValue(of(structuredClone(mockSession)));
     mockQuizService.submitAnswer.and.returnValue(of(mockResult));
     mockQuizService.saveDraft.and.returnValue(of(true));
 
     await TestBed.configureTestingModule({
-      imports: [FormsModule],
+      imports: [FormsModule, CommonModule],
       declarations: [QuizInterrogationComponent],
       providers: [
         { provide: QuizService, useValue: mockQuizService },

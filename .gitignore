@@ -1,6 +1,5 @@
 # Node modules
 node_modules/
-package-lock.json
 npm-debug.log*
 
 # IDE
@@ -34,3 +33,12 @@ coverage/
 # Temp
 *.tmp
 .cache/
+
+# Python and private model artifacts
+.venv/
+__pycache__/
+*.pyc
+backend/ml/models/
+*.pem
+.env.*
+!.env.example

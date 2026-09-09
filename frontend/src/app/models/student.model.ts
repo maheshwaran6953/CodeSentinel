@@ -3,8 +3,9 @@ export interface CommitItem {
   message: string;
   date: string;
   lines_added: number;
-  score: number;
-  status: 'normal' | 'flagged' | 'suspicious';
+  score: number | null;
+  lines_deleted?: number;
+  status: 'normal' | 'flagged' | 'suspicious' | 'queued' | 'processing' | 'failed' | 'partial' | 'excluded';
 }
 
 export interface RepositoryInfo {
@@ -15,10 +16,10 @@ export interface RepositoryInfo {
 }
 
 export interface StudentDashboardData {
-  authenticity_score: number;
-  authenticity_level: 'High' | 'Moderate' | 'Low' | 'Critical';
+  authenticity_score: number | null;
+  authenticity_level: 'High' | 'Moderate' | 'Low' | 'Critical' | 'Learning';
   total_commits: number;
-  avg_score: number;
+  avg_score: number | null;
   pending_quizzes: number;
   flagged_commits: number;
   repository: RepositoryInfo;

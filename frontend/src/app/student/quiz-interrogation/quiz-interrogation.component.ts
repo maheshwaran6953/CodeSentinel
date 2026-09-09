@@ -19,6 +19,7 @@ export class QuizInterrogationComponent implements OnInit, OnDestroy {
   
   // UI & Loading States
   isLoading: boolean = true;
+  error = '';
   isGrading: boolean = false;
   isSavingDraft: boolean = false;
   showDraftToast: boolean = false;
@@ -76,7 +77,7 @@ export class QuizInterrogationComponent implements OnInit, OnDestroy {
    */
   get isValidAnswer(): boolean {
     const min = this.currentQuestion ? this.currentQuestion.minCharCount : 20;
-    return this.answerText.trim().length >= min;
+    return this.answerText.trim().length >= min && this.answerText.length <= (this.currentQuestion?.maxCharCount || 1000);
   }
 
   /**
@@ -98,12 +99,12 @@ export class QuizInterrogationComponent implements OnInit, OnDestroy {
       .subscribe({
         next: (session) => {
           this.quizSession = session;
-          this.currentQuestionIndex = session.currentQuestionIndex || 0;
+          this.currentQuestionIndex = session?.currentQuestionIndex || 0;
           this.loadExistingAnswer();
           this.isLoading = false;
         },
         error: (err) => {
-          console.error('Failed to load quiz session', err);
+          this.error = err.error?.message || 'Failed to load quiz session. Please retry.';
           this.isLoading = false;
         }
       });
@@ -139,6 +140,7 @@ export class QuizInterrogationComponent implements OnInit, OnDestroy {
     if (!this.isValidAnswer || !this.currentQuestion || this.isGrading) return;
 
     this.isGrading = true;
+    this.error = '';
     this.showFeedback = false;
     const qId = this.currentQuestion.id;
 
@@ -148,6 +150,8 @@ export class QuizInterrogationComponent implements OnInit, OnDestroy {
         next: (result) => {
           this.isGrading = false;
           this.currentResult = result;
+          this.answerText = result.submittedAnswer ?? this.answerText;
+          if (this.quizSession) this.quizSession.answers[qId] = { questionId: qId, answerText: this.answerText, result, isDraft: false, submittedAt: new Date().toISOString() };
           this.showFeedback = true;
 
           // Auto advance to next question after 1.5 seconds if not on last question
@@ -157,7 +161,7 @@ export class QuizInterrogationComponent implements OnInit, OnDestroy {
         },
         error: (err) => {
           this.isGrading = false;
-          console.error('LLM grading error', err);
+          this.error = err.error?.message || 'Grading failed. Your submitted answer is saved; retry to grade it.';
         }
       });
   }
@@ -181,6 +185,7 @@ export class QuizInterrogationComponent implements OnInit, OnDestroy {
         },
         error: () => {
           this.isSavingDraft = false;
+          this.error = 'Draft could not be saved. Please retry before leaving.';
         }
       });
   }
@@ -194,7 +199,7 @@ export class QuizInterrogationComponent implements OnInit, OnDestroy {
       this.autoAdvanceTimer = null;
     }
 
-    if (!this.quizSession) return;
+    if (!this.quizSession || !this.currentQuestion || !this.quizSession.answers[this.currentQuestion.id]?.result) return;
 
     if (this.currentQuestionIndex < this.quizSession.totalQuestions - 1) {
       this.currentQuestionIndex++;

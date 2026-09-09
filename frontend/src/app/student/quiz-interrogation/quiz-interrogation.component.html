@@ -30,6 +30,8 @@
   </div>
 
   <!-- Draft Saved Toast -->
+  <div class="quiz-content-container" *ngIf="error" role="alert">{{error}} <button (click)="loadQuizSession()">Reload</button></div>
+  <div class="quiz-content-container" *ngIf="!isLoading && !quizSession && !error">No pending quizzes. New questions will appear after a flagged commit is processed. <button (click)="loadQuizSession()">Refresh</button></div>
   <div class="toast-banner" *ngIf="showDraftToast">
     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#30D158" stroke-width="2">
       <polyline points="20 6 9 17 4 12"></polyline>
@@ -95,6 +97,7 @@
           placeholder="Provide a detailed technical reasoning for this implementation choice..."
           [(ngModel)]="answerText"
           rows="6"
+          [maxlength]="currentQuestion.maxCharCount"
         ></textarea>
       </div>
 
@@ -117,7 +120,7 @@
       <div class="feedback-card-header">
         <div class="feedback-badge-score">
           <span class="score-number">{{ currentResult.score }}%</span>
-          <span class="score-label">Authenticity Score</span>
+          <span class="score-label">Technical Understanding</span>
         </div>
         <div class="feedback-status-pill" [ngClass]="currentResult.status">
           {{ currentResult.status === 'passed' ? 'Passed' : (currentResult.status === 'needs_improvement' ? 'Needs Improvement' : 'Failed') }}
@@ -185,7 +188,7 @@
   </main>
 
   <!-- Fixed Bottom Action Bar -->
-  <div class="fixed-bottom-bar" *ngIf="!isLoading && !isCompleted">
+  <div class="fixed-bottom-bar" *ngIf="!isLoading && !isCompleted && currentQuestion">
     <div class="action-btn-group">
       <button 
         (click)="saveDraft()" 

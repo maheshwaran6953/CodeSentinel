@@ -11,6 +11,7 @@ export interface Question {
 }
 
 export interface LLMGradingResult {
+  submittedAnswer?: string;
   score: number; // 0 to 100
   feedback: string;
   status: 'passed' | 'needs_improvement' | 'failed';

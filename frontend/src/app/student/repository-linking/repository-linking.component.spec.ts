@@ -1,5 +1,7 @@
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { FormsModule } from '@angular/forms';
+import { CommonModule } from '@angular/common';
+import { AuthService } from '../../services/auth.service';
 import { Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { RepositoryLinkingComponent } from './repository-linking.component';
@@ -57,12 +59,13 @@ describe('RepositoryLinkingComponent', () => {
     }));
 
     await TestBed.configureTestingModule({
-      imports: [FormsModule],
+      imports: [FormsModule, CommonModule],
       declarations: [RepositoryLinkingComponent],
       providers: [
         { provide: RepositoryService, useValue: mockRepositoryService },
         { provide: StudentService, useValue: mockStudentService },
         { provide: Router, useValue: mockRouter }
+        ,{ provide: AuthService, useValue: { installApp: () => {} } }
       ]
     }).compileComponents();
 

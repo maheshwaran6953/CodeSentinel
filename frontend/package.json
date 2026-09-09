@@ -1,11 +1,11 @@
 {
   "name": "codesentianel-frontend",
   "version": "1.0.0",
-  "description": "CodeSentinel Web Portal — Student & Faculty Dashboard",
+  "description": "CodeSentinel Web Portal - Student & Faculty Dashboard",
   "private": true,
   "scripts": {
-    "start": "ng serve --open",
-    "build": "ng build",
+    "start": "node scripts/config.cjs && ng serve --proxy-config proxy.conf.json",
+    "build": "node scripts/config.cjs && ng build",
     "test": "ng test"
   },
   "dependencies": {
@@ -25,14 +25,19 @@
     "@angular-devkit/build-angular": "^19.2.25",
     "@angular/cli": "^19.2.25",
     "@angular/compiler-cli": "^19.2.25",
-    "@types/jasmine": "^6.0.0",
+    "@types/jasmine": "~5.1.0",
     "@types/node": "^26.2.0",
-    "jasmine-core": "^7.0.2",
+    "jasmine-core": "~5.6.0",
     "karma": "^6.4.4",
     "karma-chrome-launcher": "^3.2.0",
     "karma-coverage": "^2.2.1",
     "karma-jasmine": "^5.1.0",
     "karma-jasmine-html-reporter": "^2.3.0",
     "typescript": "^5.6.2"
+  },
+  "overrides": {
+    "tar": "^7.5.21",
+    "qs": "^6.16.0",
+    "uuid": "^11.1.1"
   }
 }
