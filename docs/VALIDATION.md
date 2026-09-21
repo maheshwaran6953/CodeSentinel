@@ -10,13 +10,13 @@ Checkpoint: 2026-09-21. Historical local results below remain separate from host
 | Supabase | VERIFIED LIVE for TLS, database authentication, migration, nine application tables, constraints/indexes/RLS and migration rerun; confirmed faculty login/profile/session/dashboard verified using local application |
 | Groq | VERIFIED LIVE for model discovery, commit-specific questions and structured grading with `openai/gpt-oss-20b`; persistence and score updates passed in isolated PostgreSQL; hosted student workflow pending |
 | Upstash | VERIFIED LIVE — free database, verified TLS, PING, reconnect, BullMQ producer/worker, retry, deduplication and job persistence across producer restart |
-| Render | NOT DEPLOYED — account setup and production deployment pending |
-| Vercel | NOT DEPLOYED — account setup and production deployment pending |
+| Render | VERIFIED LIVE for Docker build, migration-runner completion, NestJS startup and public HTTP 200 readiness (Supabase + Upstash); production AST/ML and browser E2E pending |
+| Vercel | VERIFIED LIVE for Angular production deployment, login/direct-route HTML and generated API configuration at https://codesentinel-ochre.vercel.app; authenticated browser E2E pending |
 | Browser E2E | PARTIAL — local frontend/backend faculty login with hosted Supabase passed; complete deployed student/commit/quiz/override workflow pending |
 
 **FINAL PROJECT STATUS: NOT YET DEMO READY**
 
-Current blockers: Render/Vercel deployments, production GitHub URLs/deliveries and complete live E2E validation, including hosted quiz persistence.
+Current blockers: GitHub App URLs/deliveries and complete live E2E validation, including hosted quiz persistence.
 
 Startup diagnosis: the existing 10-second PostgreSQL connection timeout was reproduced against the Supabase session pooler (one timeout, successful attempts at 9.9 and 6.6 seconds with verified TLS). Increased the connection timeout to 30 seconds without weakening TLS or statement limits. At that checkpoint, local Redis was independently unavailable; hosted Upstash resolved this on 2026-09-21. A failed bootstrap previously left Redis retry timers running because it only set process.exitCode; it now exits with status 1. The public Supabase CA is included in the Docker image and referenced by the Render configuration.
 
@@ -243,4 +243,8 @@ remains available as `codesentinel-validation:external`. Temporary certificate/k
 files were removed. No provider resources were
 created or deployed.
 
-Render first deployment (2026-09-21): Docker build and dependency installation succeeded at cd3b074. Startup exited 127 because the single-quoted Docker command was interpreted as one executable name. Both single- and double-quoted inline commands failed identically. The Docker command now invokes `/bin/sh /app/start.sh`, which runs the same migration runner and then execs NestJS without nested command quoting; verification pending. Assigned backend URL: https://codesentinel-api-rilz.onrender.com.
+Render first deployment (2026-09-21): Docker build and dependency installation succeeded at cd3b074. Startup exited 127 because the single-quoted Docker command was interpreted as one executable name. Both single- and double-quoted inline commands failed identically. The Docker command now invokes `/bin/sh /app/start.sh`, which runs the same migration runner and then execs NestJS without nested command quoting; verified by successful deployment `dep-daojqkajnfac7398he0g` of commit `0492b81`, NestJS startup logs, and public `/health/ready` returning HTTP 200 with `{"status":"ready"}`. Because the script uses `set -e`, reaching NestJS confirms the existing migration runner exited successfully. No new fixture data was inserted. Assigned backend URL: https://codesentinel-api-rilz.onrender.com.
+
+After the startup-script correction: backend build/10 tests, frontend 21 ChromeHeadless tests and 6 ML tests passed. Shell syntax validation passed. Production Python/tree-sitter/XGBoost packages installed during the Docker build; actual hosted analysis still requires the real commit workflow.
+
+Vercel deployed the unchanged frontend from main at https://codesentinel-ochre.vercel.app. `/`, `/login`, `/faculty/cohort` and `/config.js` returned HTTP 200, with the generated config pointing to the actual Render backend. Render production URL settings were corrected using revealed fields (masked controls initially did not persist edits). After redeployment, readiness returned HTTP 200 with credentialed CORS allowing exactly https://codesentinel-ochre.vercel.app. Browser login page rendered successfully; authenticated login and cross-site session persistence still require the user to enter their password.
