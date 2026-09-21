@@ -9,7 +9,7 @@ export function dataSource(): DataSource {
       rejectUnauthorized: true,
       ...(process.env.DATABASE_CA_FILE ? { ca: readFileSync(process.env.DATABASE_CA_FILE, 'utf8') } : {})
     } : false,
-    synchronize: false, extra: { max: 8, connectionTimeoutMillis: 10000, statement_timeout: 30000 }
+    synchronize: false, extra: { max: 8, connectionTimeoutMillis: 30000, statement_timeout: 30000 }
   });
 }
 @Injectable()

@@ -1,5 +1,37 @@
 # Validation record
 
+## Live External Validation
+
+Checkpoint: 2026-09-21. Historical local results below remain separate from hosted validation.
+
+| Integration | Current live status |
+|---|---|
+| GitHub | NOT VERIFIED LIVE — App exists; production OAuth, installation and webhook flow pending |
+| Supabase | VERIFIED LIVE for TLS, database authentication, migration, nine application tables, constraints/indexes/RLS and migration rerun; confirmed faculty login/profile/session/dashboard verified using local application |
+| Groq | VERIFIED LIVE for model discovery, commit-specific questions and structured grading with `openai/gpt-oss-20b`; persistence and score updates passed in isolated PostgreSQL; hosted student workflow pending |
+| Upstash | VERIFIED LIVE — free database, verified TLS, PING, reconnect, BullMQ producer/worker, retry, deduplication and job persistence across producer restart |
+| Render | NOT DEPLOYED — account setup and production deployment pending |
+| Vercel | NOT DEPLOYED — account setup and production deployment pending |
+| Browser E2E | PARTIAL — local frontend/backend faculty login with hosted Supabase passed; complete deployed student/commit/quiz/override workflow pending |
+
+**FINAL PROJECT STATUS: NOT YET DEMO READY**
+
+Current blockers: Render/Vercel deployments, production GitHub URLs/deliveries and complete live E2E validation, including hosted quiz persistence.
+
+Startup diagnosis: the existing 10-second PostgreSQL connection timeout was reproduced against the Supabase session pooler (one timeout, successful attempts at 9.9 and 6.6 seconds with verified TLS). Increased the connection timeout to 30 seconds without weakening TLS or statement limits. At that checkpoint, local Redis was independently unavailable; hosted Upstash resolved this on 2026-09-21. A failed bootstrap previously left Redis retry timers running because it only set process.exitCode; it now exits with status 1. The public Supabase CA is included in the Docker image and referenced by the Render configuration.
+
+2026-09-18 checks after the minimal changes: backend build and 10 tests passed; Python 6 tests passed; frontend production build and 21 ChromeHeadless tests passed (headless browser required execution outside the Windows filesystem sandbox). The existing 510.98 kB bundle warning remains. Three TypeORM initialization checks passed, a full Nest startup passed with a 13-second database hook, and the normal server subsequently started successfully. One intervening startup still failed with the existing generic error; network stability should be monitored during hosted deployment. Redis was independently classified as ECONNREFUSED. Docker image rebuild could not run because the local Docker daemon is stopped. No hosted Redis, Groq or deployed-E2E success is claimed.
+
+2026-09-21 external integration: stored the authorized Upstash TCP/TLS URL only in ignored `backend/.env`. A unique temporary validation queue passed TLS verification, reconnect, duplicate job handling, an intentional first-attempt failure followed by retry, and persistence across producer restart; only that test queue was removed afterward. `RUN_WORKER=true` is now configured; the backend started, `/health/ready` returned HTTP 200 with `ready`, and BullMQ reported one worker. No synthetic commit jobs were sent to the application queue.
+
+Groq model discovery succeeded; `llama-3.3-70b-versatile` was absent from the account model list. `openai/gpt-oss-20b` produced three commit-specific questions and a valid structured grade through the unchanged Llm service. A separate isolated in-memory PostgreSQL run used real Groq calls through Analysis/QuizController: three questions and three grades persisted, the quiz completed, and one score-history update was recorded. Its local seed records were explicitly test data, not authorship evidence; no fixture records were written to hosted Supabase. An initial isolated run failed with sanitized output and no precise cause captured; rerunning with stage/status diagnostics passed with four HTTP 200 completions. This does not prove provider reliability or deployed E2E. Backend build/10 tests and all 6 Python tests passed again.
+
+Deployment preparation: Render account is accessible. The blueprint selects the free plan explicitly, uses the existing migration runner in the Docker startup command because Render pre-deploy commands require paid compute, and selects the live-verified Groq model. No paid resource or billing change was authorized or performed.
+
+Deferred secondary test: fresh non-allowlisted faculty login rejection is INCONCLUSIVE. Observed invalid-credentials responses occurred before the allowlist check, and later retries were interrupted by initialization failures. Normal saved allowlist restored; no persistent faculty role or Supabase user changed by this test. Do not repeat until the complete live flow works.
+
+Security cleanup: exposed GitHub client-secret value was removed from the tracked template. Earlier local tracked-file/history inspection did not find that exact value in Git history; credential validity/rotation is not claimed here. No secret values are recorded in this document.
+
 Validated locally on 2026-09-09 using Windows, Node 24.14.1, Python 3.12.14,
 Chrome Headless 152, Docker PostgreSQL 16 and Redis 7. These results do not
 assert that GitHub, Supabase-hosted services, Groq, Render or Vercel credentials
@@ -169,7 +201,7 @@ they do not need to be pasted into chat.
    delivery result plus persisted analysis. Confirm PR delivery, redelivery without
    duplicate evidence/quiz, installation removal behaviour, and rate-limit recovery.
    A local signed ping does not satisfy this step.
-3. **Supabase database and faculty Auth.** Provide `DATABASE_URL`, TLS/CA settings,
+3. **Supabase database and faculty Auth — core checks completed; secondary authorization test deferred.** The hosted TLS, migration and faculty-login checks above are verified. The remaining production-browser and negative authorization checks still apply. Original setup guidance: provide `DATABASE_URL`, TLS/CA settings,
    `SUPABASE_URL`, `SUPABASE_ANON_KEY` and `FACULTY_EMAILS`. Review the migration against
    the actual existing schema before applying it; do not run fixture tests against
    that database. Verify hosted TLS connectivity, migrations/RLS, a confirmed faculty

@@ -40,4 +40,4 @@ async function bootstrap() {
   app.enableShutdownHooks();
   await app.listen(Number(process.env.PORT || 3000),'0.0.0.0');
 }
-bootstrap().catch(error=>{ console.error(error instanceof Error && error.message.startsWith('Missing required') ? error.message : 'Backend startup failed. Verify configuration, migrations and database/Redis availability.'); process.exitCode=1; });
+bootstrap().catch(error=>{ console.error(error instanceof Error && error.message.startsWith('Missing required') ? error.message : 'Backend startup failed. Verify configuration, migrations and database/Redis availability.'); process.exit(1); });

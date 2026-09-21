@@ -2,10 +2,11 @@ services:
   - type: web
     name: codesentinel-api
     runtime: docker
+    plan: free
     rootDir: backend
     dockerfilePath: ./Dockerfile
     healthCheckPath: /health/ready
-    preDeployCommand: node dist/migrate.js
+    dockerCommand: /bin/sh -c 'node dist/migrate.js && exec node dist/main.js'
     envVars:
       - key: NODE_ENV
         value: production
@@ -15,6 +16,8 @@ services:
         value: "true"
       - key: DATABASE_SSL
         value: "true"
+      - key: DATABASE_CA_FILE
+        value: /app/certs/supabase-ca.crt
       - key: DATABASE_URL
         sync: false
       - key: REDIS_URL
@@ -48,4 +51,4 @@ services:
       - key: GROQ_API_KEY
         sync: false
       - key: GROQ_MODEL
-        value: llama-3.3-70b-versatile
+        value: openai/gpt-oss-20b

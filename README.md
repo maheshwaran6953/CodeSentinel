@@ -65,6 +65,8 @@ Do not put any real credentials in tracked files. No secrets or production accou
 
 Run from separate terminals. On Windows PowerShell, use `npm.cmd` if execution policy blocks `npm.ps1`.
 
+For this project, the downloaded public Supabase CA is stored at `backend/certs/supabase-ca.crt`. The Docker image includes it at `/app/certs/supabase-ca.crt`, and `render.yaml` sets `DATABASE_CA_FILE` accordingly. For local execution, use its absolute filesystem path. Database connection establishment allows 30 seconds; TLS certificate verification remains mandatory when `DATABASE_SSL=true`.
+
 ### 1. Database and Redis
 
 Use Supabase/Upstash, or start local development services from the project root:
@@ -135,6 +137,7 @@ Create a GitHub App, retaining the **App** integration model rather than an OAut
 - Events: **Push**, **Pull request**; installation lifecycle deliveries are also handled.
 - Generate a private key and configure `GITHUB_PRIVATE_KEY` as PEM text. In `.env`, a quoted value may use literal `\n` escapes; hosting secret fields may contain real newlines.
 - Enable user authorization. Expiring user tokens are supported, including encrypted refresh-token storage and rotation.
+- Keep **Request user authorization (OAuth) during installation OFF**: login starts through `/auth/github` and establishes the required state cookie before installation. Keep wildcard matching and Device Flow OFF; set Redirect on update ON to return to repository linking.
 - Install the App on each repository being monitored. Organization approval may be required.
 
 Student flow: Continue with GitHub → Link Repository → Install/configure App if needed → refresh repository list → select → review → link. Linking checks both user access and installation access, stores the repository and queues history import. The App's central webhook is configured once in GitHub; CodeSentinel does not create a separate repository hook or falsely claim a delivery has arrived.
@@ -163,7 +166,7 @@ Signals are combined as risk: velocity 0.30, stylometry 0.40, quiz risk (100 min
 
 ## Groq interrogation and grading
 
-Set `GROQ_API_KEY` and optionally `GROQ_MODEL`. Flagged commits with usable source diffs produce two or three commit-specific technical questions. The model sees bounded diff/metadata/anomaly context and returns validated JSON. Questions avoid accusations; faculty-only rubrics are not sent to students.
+Set `GROQ_API_KEY` and `GROQ_MODEL`. On 2026-09-21, the configured account did not list the historical LLaMA default; real question generation and grading passed with `GROQ_MODEL=openai/gpt-oss-20b`, now selected in the deployment blueprint. Check account model availability before changing this value. Flagged commits with usable source diffs produce two or three commit-specific technical questions. The model sees bounded diff/metadata/anomaly context and returns validated JSON. Questions avoid accusations; faculty-only rubrics are not sent to students.
 
 Answers (20–1000 characters) and drafts are persisted. Groq evaluates technical correctness, relevance, reasoning, design understanding and tradeoffs. The backend validates rubric ranges and calculates the final understanding score with weights 35/20/20/15/10. It stores explanation, confidence, model and rubric version. Confidence is the LLM's self-report, not calibrated statistical confidence.
 
@@ -200,7 +203,7 @@ This tests the real BullMQ producer/consumer and database, with explicitly label
 
 ## Production deployment
 
-**Backend / Render:** use `render.yaml` or a Docker web service rooted at `backend`. The Dockerfile installs Python/grammar/XGBoost dependencies and compiles NestJS. Supply every secret/configuration from the backend environment example. Run `node dist/migrate.js` as the pre-deploy command (or once in a controlled deployment shell if the hosting plan lacks pre-deploy support). Use `/health/ready` for database/Redis readiness. Use an always-on instance with enough memory for Node plus XGBoost; a sleeping/free service is unreliable for immediate webhook demonstration. Keep one replica.
+**Backend / Render:** use `render.yaml` or a Docker web service rooted at `backend`. The Dockerfile installs Python/grammar/XGBoost dependencies and compiles NestJS. Supply every secret/configuration from the backend environment example. The blueprint explicitly selects the free plan and runs `/bin/sh -c 'node dist/migrate.js && exec node dist/main.js'` as the Docker command. This uses the existing transactional migration runner and stops startup on migration failure; previously applied migrations are skipped. Render pre-deploy commands and deployment shells require paid compute, so the free configuration does not use them. Use `/health/ready` for database/Redis readiness. The free service sleeps when idle and has limited memory; validate Node plus XGBoost memory use and wake the service before the demonstration. An always-on paid instance requires explicit approval. Keep one replica.
 
 **Frontend / Vercel:** root directory `frontend`, build `npm run build`, output `dist/codesentinel-frontend`. Configure public `API_URL`, deploy, set backend `FRONTEND_URL`, and configure the GitHub callback/setup/webhook URLs. The checked-in Vercel rewrite supports refreshing Angular routes. Prefer same-site custom frontend/API domains for cookies.
 
