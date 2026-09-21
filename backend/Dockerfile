@@ -10,6 +10,7 @@ COPY src ./src
 COPY ml ./ml
 COPY migrations ./migrations
 COPY certs ./certs
+COPY start.sh ./start.sh
 RUN npm run build && mkdir -p /app/ml/models && chown -R node:node /app
 ENV PYTHON_EXECUTABLE=/app/.venv/bin/python NODE_ENV=production
 USER node

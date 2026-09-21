@@ -6,7 +6,7 @@ services:
     rootDir: backend
     dockerfilePath: ./Dockerfile
     healthCheckPath: /health/ready
-    dockerCommand: /bin/sh -c 'node dist/migrate.js && exec node dist/main.js'
+    dockerCommand: /bin/sh /app/start.sh
     envVars:
       - key: NODE_ENV
         value: production

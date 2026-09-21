@@ -242,3 +242,5 @@ containers used in this follow-up were stopped and removed; the locally built im
 remains available as `codesentinel-validation:external`. Temporary certificate/key
 files were removed. No provider resources were
 created or deployed.
+
+Render first deployment (2026-09-21): Docker build and dependency installation succeeded at cd3b074. Startup exited 127 because the single-quoted Docker command was interpreted as one executable name. Both single- and double-quoted inline commands failed identically. The Docker command now invokes `/bin/sh /app/start.sh`, which runs the same migration runner and then execs NestJS without nested command quoting; verification pending. Assigned backend URL: https://codesentinel-api-rilz.onrender.com.
