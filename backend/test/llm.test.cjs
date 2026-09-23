@@ -57,3 +57,20 @@ test('Groq grading uses rubric weights and rejects invalid score ranges',async()
     await assert.rejects(llm.grade({},'A technical explanation.'),e=>e.getStatus()===503);
   });
 });
+
+test('GPT-OSS grading requires every rubric field including confidence via strict schema',async()=>{
+  const previous=process.env.GROQ_MODEL;
+  process.env.GROQ_MODEL='openai/gpt-oss-20b';
+  try {
+    await transport(async(url,body)=>{
+      assert.equal(body.response_format.type,'json_schema');
+      const format=body.response_format.json_schema;
+      assert.equal(format.strict,true);
+      assert.equal(format.schema.additionalProperties,false);
+      assert.deepEqual(format.schema.required,Object.keys(format.schema.properties));
+      assert.ok(format.schema.required.includes('confidence'));
+      return response({technicalCorrectness:80,relevance:80,reasoningQuality:80,designUnderstanding:80,tradeoffs:80,
+        explanation:'The response explains the code and limitations.',confidence:0.75});
+    },async llm=>assert.equal((await llm.grade({},'Test technical explanation')).score,80));
+  } finally {if(previous===undefined)delete process.env.GROQ_MODEL;else process.env.GROQ_MODEL=previous;}
+});
