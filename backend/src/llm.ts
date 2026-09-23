@@ -27,8 +27,8 @@ export class Llm {
   async questions(commit: any) {
     const result = await this.json('Generate 2 or 3 neutral technical questions specifically grounded in the provided diff. Ask about decisions, control flow, failure conditions and tradeoffs, without accusations. Return JSON {questions:[{questionText:string,rubric:string}]}. Each rubric describes technically valid answers, allows reasonable alternatives, and is private to faculty. Do not invent code absent from the diff.',
       { sha: commit.sha, message: commit.message, diff: commit.diff?.slice(0,24000), anomalies: commit.reasons });
-    if (!Array.isArray(result.questions) || result.questions.length<2 || result.questions.length>3 || result.questions.some((q: any) =>
-      typeof q.questionText !== 'string' || q.questionText.length<20 || q.questionText.length>2000 || typeof q.rubric !== 'string' || q.rubric.length<20 || q.rubric.length>4000)) {
+    if (!Array.isArray(result?.questions) || result.questions.length<2 || result.questions.length>3 || result.questions.some((q: any) =>
+      typeof q?.questionText !== 'string' || q.questionText.length<20 || q.questionText.length>2000 || typeof q.rubric !== 'string' || q.rubric.length<20 || q.rubric.length>4000)) {
       throw new ServiceUnavailableException('Groq returned invalid questions; retry generation');
     }
     return result.questions as { questionText: string; rubric: string }[];

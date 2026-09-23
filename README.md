@@ -232,14 +232,15 @@ A repository without enough eligible history will not force an anomaly quiz. Pre
 | Backend exits on startup | Missing named environment variables, DATABASE_URL, TLS certificates and migrations |
 | Login redirects with an error | App client secret, exact callback URL, OAuth state cookie, consistent hostname |
 | Faculty denied | Confirmed Supabase Auth email, SUPABASE_URL/ANON_KEY and FACULTY_EMAILS |
-| Empty repository list | Install the App on selected repos, organization approval, user access, refresh |
+| Empty repository list | Check App Contents/Metadata/Pull requests read-only permissions, accept pending installation permission updates, select the intended repo, then refresh; also check organization approval and user access |
 | Repository authorized but no deliveries | App webhook URL/event subscriptions and GitHub Recent Deliveries; localhost needs a public tunnel |
 | Webhook 401 | Exact secret and unmodified raw bytes; do not test with reserialized JSON signatures |
 | Queued work stalls | REDIS_URL must be redis:// or rediss:// TCP, not the Upstash REST endpoint; check worker setting and Redis persistence |
 | API rate limited or repository unavailable | GitHub permission/installation state, rate-limit reset and worker retries |
 | AST unavailable | Correct venv executable, installed requirements, supported language, source size/parse errors |
 | Learning/no score | Expected before sufficient personal history; unknown authors and generated code do not mature the baseline |
-| Quiz generation/grading failed | GROQ_API_KEY, active model ID, quota, response schema; use retry, original answers remain saved |
+| Quiz generation/grading failed | GROQ_API_KEY, active model ID, organization/model quota and response schema; use retry after the quota reset, original answers remain saved. The 2,400-token output cap and 24,000-character diff cap do not guarantee requests fit a tokens-per-minute quota. Avoid parallel demo submissions. |
+| First request displays Render loading | The free backend sleeps when idle. Open the backend readiness URL and wait for `ready` before the demonstration; this is a hosting cold start, not a completed application request. |
 | Session missing only in production | HTTPS cookie, exact CORS origin, browser third-party-cookie restrictions; use same-site custom domains |
 | npm.ps1 blocked on Windows | Use npm.cmd; no need to change machine execution policy |
 | PyPI has no matching tree-sitter distribution | Use Python 3.12 and a package index that mirrors the grammar wheels; public PyPI was used in validation |
