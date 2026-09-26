@@ -11,6 +11,7 @@ import { AppComponent } from './app.component';
 import { AppRoutingModule } from './app-routing.module';
 import { AuthModule } from './auth/auth.module';
 import { StudentModule } from './student/student.module';
+import { NotificationsComponent } from './notifications.component';
 
 @NgModule({
   declarations: [
@@ -18,6 +19,7 @@ import { StudentModule } from './student/student.module';
   ],
   imports: [
     BrowserModule,
+    NotificationsComponent,
     HttpClientModule,
     BrowserAnimationsModule,
     FormsModule,

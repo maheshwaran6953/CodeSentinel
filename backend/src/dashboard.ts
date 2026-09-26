@@ -4,6 +4,7 @@ import { Database } from './database';
 import { AuthRequest, Roles } from './security';
 import { AnalysisQueue } from './queue';
 import { publicEvidence } from './evidence';
+import { Llm } from './llm';
 
 class OverrideDto {
   @IsIn(['legitimate','needs_review','note']) action!: string;
@@ -14,7 +15,7 @@ export class StudentController {
   constructor(private db: Database) {}
   @Get('dashboard') async dashboard(@Req() req: AuthRequest) {
     const repos = await this.db.query('SELECT * FROM repositories WHERE student_id=$1 ORDER BY linked_at DESC',[req.user.id]);
-    const commits = await this.db.query('SELECT * FROM commits WHERE student_id=$1 ORDER BY committed_at DESC NULLS LAST LIMIT 50',[req.user.id]);
+    const commits = await this.db.query('SELECT c.*,r.full_name FROM commits c JOIN repositories r ON r.id=c.repository_id WHERE c.student_id=$1 ORDER BY c.committed_at DESC NULLS LAST LIMIT 50',[req.user.id]);
     const [stats] = await this.db.query(`SELECT count(*)::int AS total,
       count(*) FILTER(WHERE flagged)::int AS flagged FROM commits WHERE student_id=$1`,[req.user.id]);
     const [pending] = await this.db.query("SELECT count(*)::int AS count FROM quizzes WHERE student_id=$1 AND status<>'completed'",[req.user.id]);
@@ -24,18 +25,21 @@ export class StudentController {
       repository:repos.length ? {name:repos[0].full_name,url:repos[0].url,linked_at:repos[0].linked_at,is_linked:repos[0].active,
         webhook_received_at:repos[0].last_webhook_at} : {name:'No repository linked',url:'',linked_at:'',is_linked:false},
       repositories:repos.map(r=>({name:r.full_name,is_linked:r.active,webhook_received_at:r.last_webhook_at})),
-      recent_commits:commits.map(c=>({sha:c.sha,message:c.message || 'Awaiting analysis',date:c.committed_at,
+      recent_commits:commits.map(c=>({url:`https://github.com/${c.full_name}/commit/${c.sha}`,sha:c.sha,message:c.message || 'Awaiting analysis',date:c.committed_at,
         lines_added:c.additions || 0,lines_deleted:c.deletions || 0,score:null,evidence_status:publicEvidence(c).status,
         status:c.status==='completed' ? c.flagged?(c.signals?.evidence?.version==='longitudinal-v2'?'review_requested':'legacy_review'):'normal':c.status,baseline:publicEvidence(c).baseline.status})) };
   }
 }
 @Controller('faculty') @Roles('faculty')
 export class FacultyController {
-  constructor(private db: Database,private queue: AnalysisQueue) {}
+  constructor(private db: Database,private queue: AnalysisQueue,private llm:Llm) {}
+  @Get('provider-status') providerStatus() {return this.llm.quotaStatus;}
   @Get('students') async students() {
     const rows = await this.db.query(`SELECT u.id,u.name,u.github_login,
       (SELECT count(*)::int FROM repositories r WHERE r.student_id=u.id AND active) AS repositories,
       (SELECT count(*)::int FROM commits c WHERE c.student_id=u.id) AS commits,
+      (SELECT max(committed_at) FROM commits c WHERE c.student_id=u.id) AS last_activity,
+      (SELECT count(*)::int FROM quizzes q WHERE q.student_id=u.id AND q.status<>'completed') AS pending_discussions,
       (SELECT signals FROM commits c WHERE c.student_id=u.id ORDER BY committed_at DESC NULLS LAST LIMIT 1) AS signals,
       (SELECT count(*)::int FROM commits c WHERE c.student_id=u.id AND flagged) AS flagged
       FROM users u WHERE role='student' ORDER BY u.name`);

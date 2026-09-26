@@ -15,6 +15,18 @@ async function transport(post, run) {
 const response=value=>({data:{choices:[{message:{content:JSON.stringify(value)}}]}});
 const question={questionText:'Why does the task validator reject negative durations?',rubric:'Explain the duration invariant and why invalid input raises an exception.'};
 
+test('Groq honors provider cooldown without repeated requests and reports only safe limit metadata',async()=>{
+  let calls=0;
+  await transport(async()=>{calls++;throw {response:{status:429,headers:{'retry-after':'120','x-ratelimit-remaining-requests':'42','authorization':'secret-must-not-escape'}}};},async llm=>{
+    await assert.rejects(llm.questions({diff:'code'}),/quota temporarily reached/);
+    await assert.rejects(llm.questions({diff:'code'}),/cooldown/);
+    assert.equal(calls,1);
+    assert.equal(llm.quotaStatus.dailyRequestsRemaining,42);
+    assert.ok(Date.parse(llm.quotaStatus.retryAt)>Date.now());
+    assert.ok(!JSON.stringify(llm.quotaStatus).includes('secret-must-not-escape'));
+  });
+});
+
 test('Groq requests bound diff and completion size and retain structured output mode',async()=>{
   await transport(async(url,body,options)=>{
     assert.equal(url,'https://api.groq.com/openai/v1/chat/completions');

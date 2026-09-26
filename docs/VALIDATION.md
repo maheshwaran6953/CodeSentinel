@@ -340,3 +340,10 @@ Signed-in student confirmation: the user refreshed the production dashboard and 
 Read-only hosted verification after the faculty's request confirms three generated questions, stored raw generation audit, one faculty request review, and flagged=false for cbbf637. Student answers and the subsequent faculty review remain the core live acceptance steps; earlier secondary tests are not the reason for withholding demo acceptance.
 
 Corrected quiz content-box padding overflow, narrow-screen action-bar layout, modal sizing, dashboard flex/grid shrink behavior, and spacing between faculty review actions. Frontend production build passes (existing bundle-size warning remains); ChromeHeadless tests pass 24/24. These checks do not substitute for authenticated visual acceptance of the deployed pages.
+
+
+### Dashboard usability and reminders — 2026-09-26
+
+Implemented a role-scoped current-activity inbox, browser-local read markers, correct repository/SHA links, faculty modal evidence with blurred backdrop, cohort activity/discussion context and a student action-oriented workspace. Added Groq response-header capacity observations and Retry-After cooldown without exposing credentials. No migration, roster fixtures, paid resource or provider setting change is required.
+
+Checks: backend build and existing 23 tests pass; added inbox isolation/real PostgreSQL query and Groq cooldown tests pass (25 backend tests total). Frontend production build passes with the existing bundle-budget warning; 27 ChromeHeadless tests pass, including modal close races and commit links. Eight Python tests pass. Live rollout and authenticated visual acceptance of these new additions remain separate from these local results. The user confirmed existing faculty visibility of submitted student answers; the final third-answer/faculty-review persistence check is still outstanding.

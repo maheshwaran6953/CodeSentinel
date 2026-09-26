@@ -31,6 +31,7 @@ describe('StudentDashboardComponent', () => {
     recent_commits: [
       {
         sha: 'abc123',
+        url: 'https://github.com/owner/project/commit/abc123',
         message: 'Added auth module',
         date: 'Jan 10, 2026',
         lines_added: 150,
@@ -72,6 +73,11 @@ describe('StudentDashboardComponent', () => {
 
   it('should create the component', () => {
     expect(component).toBeTruthy();
+  });
+  it('links directly to the commit with an accessible new-tab label',()=>{
+    const link:HTMLAnchorElement=fixture.nativeElement.querySelector('a.commit-message');
+    expect(link.href).toBe('https://github.com/owner/project/commit/abc123');
+    expect(link.rel).toContain('noopener');expect(link.getAttribute('aria-label')).toContain('new tab');
   });
 
   it('should load dashboard data on init', () => {

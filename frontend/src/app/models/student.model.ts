@@ -1,4 +1,5 @@
 export interface CommitItem {
+  url?: string;
   evidence_status?: string;
   sha: string;
   message: string;

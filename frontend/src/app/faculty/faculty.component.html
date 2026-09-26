@@ -4,10 +4,16 @@
     <div class="header-section"><h1 class="page-title">Authorship evidence</h1><p class="page-subtitle">Signals support review; they do not prove misconduct. Updates every 15 seconds.</p></div>
     <p role="alert" *ngIf="error">{{error}} <button (click)="refresh()">Retry</button></p>
     <p *ngIf="loading" role="status">Loading evidence...</p>
+    <section class="cohort-overview" *ngIf="!selected" aria-label="Cohort overview">
+      <div><span>CLASS COVERAGE</span><strong>{{students.length}} students</strong><small>{{linkedStudents}} with an authorized repository</small></div>
+      <div><span>AWAITING EXPLANATIONS</span><strong>{{pendingDiscussions}} discussions</strong><small>Pending student completion, not misconduct findings</small></div>
+      <p>Select a student to follow their development history, inspect evidence and record a review.</p>
+    </section>
+    <details *ngIf="provider && !selected"><summary>Groq service capacity</summary><p>Model: {{provider.model}} · Completion cap: {{provider.maxCompletionTokens}} tokens per request.</p><p>Remaining daily requests: {{provider.dailyRequestsRemaining ?? 'Not observed'}} · Remaining tokens in the minute window: {{provider.minuteTokensRemaining ?? 'Not observed'}}.</p><p *ngIf="provider.retryAt">Rate-limit cooldown until {{provider.retryAt | date:'medium'}}. Saved answers are retained.</p><small>{{provider.scope}}. {{provider.observedAt ? (provider.observedAt | date:'medium') : 'Awaiting a provider request.'}}</small></details>
     <section class="card panel" *ngIf="!selected">
       <h2>Student cohort</h2><p *ngIf="!students.length">Students appear after their first GitHub sign in.</p>
-      <div class="table-responsive"><table class="activity-table"><thead><tr><th>Student</th><th>Active repositories</th><th>Commits</th><th>Evidence status</th><th>Review events</th></tr></thead>
-        <tbody><tr *ngFor="let s of students"><td><button class="text-button" (click)="openStudent(s.id)">{{s.name}} / {{s.github_login}}</button></td><td>{{s.repositories}}</td><td>{{s.commits}}</td><td>{{s.evidence_status}}</td><td>{{s.flagged}}</td></tr></tbody></table></div>
+      <div class="table-responsive"><table class="activity-table"><thead><tr><th>Student</th><th>Active repositories</th><th>Commits</th><th>Evidence status</th><th>Discussions pending</th><th>Last activity</th><th>Review events</th></tr></thead>
+        <tbody><tr *ngFor="let s of students"><td><button class="text-button" (click)="openStudent(s.id)">{{s.name}} / {{s.github_login}}</button></td><td>{{s.repositories}}</td><td>{{s.commits}}</td><td>{{s.evidence_status}}</td><td>{{s.pending_discussions || 0}}</td><td>{{s.last_activity ? (s.last_activity | date:'mediumDate') : 'No commits yet'}}</td><td>{{s.flagged}}</td></tr></tbody></table></div>
     </section>
     <ng-container *ngIf="selected">
       <button class="btn-primary" (click)="selected=null;evidence=null">Back to cohort</button>
@@ -18,7 +24,10 @@
           <tbody><tr *ngFor="let c of selected.commits"><td><button class="text-button" (click)="openCommit(c.id)">{{c.message || 'Queued commit'}}</button><small>{{c.full_name}} · {{c.sha | slice:0:10}}</small></td><td>{{c.committed_at | date:'medium'}}</td><td>+{{c.additions}} / -{{c.deletions}}</td><td>{{c.evidence.status}}</td><td>{{c.status}} {{c.flagged?'· Review event':''}}<small>Baseline: {{c.baseline || 'learning'}}</small></td></tr></tbody></table></div>
       </section>
     </ng-container>
-    <ng-container *ngIf="evidence">
+    <dialog #evidenceDialog class="evidence-dialog" aria-labelledby="evidence-dialog-title" (cancel)="closeEvidence()">
+      <header class="dialog-heading"><div><span>COMMIT WORKSPACE</span><h2 id="evidence-dialog-title">Evidence &amp; faculty review</h2></div><button type="button" class="btn-primary" autofocus (click)="closeEvidence()">Close</button></header>
+      <p *ngIf="loading" role="status">Loading commit evidence…</p><p *ngIf="error" role="alert">{{error}}</p>
+      <ng-container *ngIf="evidence">
       <section class="card panel"><h2>{{evidence.commit.message}}</h2><p>{{evidence.commit.sha}}</p>
         <h3>{{evidence.commit.evidence.status}}</h3>
         <p>No calibrated authorship probability is available. Final interpretation belongs to faculty.</p>
@@ -60,5 +69,6 @@
         <button class="btn-primary" [disabled]="reason.trim().length<10 || saving" (click)="requestDiscussion()">Request technical discussion with this reason</button><p role="status">{{notice}}</p><article *ngFor="let o of evidence.overrides"><strong>{{o.action}} · {{o.faculty_name}} · {{o.created_at | date:'medium'}}</strong><p>{{o.reason}}</p><details><summary>Original analysis at review time</summary><pre>{{o.original_analysis | json}}</pre></details></article>
       </section>
     </ng-container>
+    </dialog>
   </div></main>
 </div>

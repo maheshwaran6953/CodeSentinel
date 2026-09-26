@@ -13,7 +13,8 @@ import { Stylometry } from './stylometry';
 import { Llm } from './llm';
 import { QuizController } from './quiz';
 import { FacultyController, StudentController } from './dashboard';
+import { NotificationsController } from './notifications';
 
-@Module({ imports:[JwtModule.register({})],controllers:[AuthController,RepositoryController,WebhookController,QuizController,StudentController,FacultyController],
+@Module({ imports:[JwtModule.register({})],controllers:[AuthController,RepositoryController,WebhookController,QuizController,StudentController,FacultyController,NotificationsController],
   providers:[Database,GitHub,AnalysisQueue,Analysis,Stylometry,Llm,{provide:APP_GUARD,useClass:AccessGuard}] })
 export class AppModule {}

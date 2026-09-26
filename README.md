@@ -258,3 +258,14 @@ Mahesh Waran (B.Tech IT, VSB Engineering College)
 ## License
 
 MIT (as declared by the original project).
+
+
+## Activity inbox and dashboard workspace
+
+Authenticated students and faculty have an in-app Updates inbox, refreshed every 30 seconds. It reconstructs current reminders from real repository, commit, quiz, response and review records; it does not fabricate events or require a new database migration. Students see only their own activity. Faculty can open a commit directly in a native modal dialog with a blurred backdrop, keyboard focus containment and Escape/Close support. The student overview offers development history, baseline context, pending discussions and review context; commit links open the correct GitHub repository/SHA.
+
+The inbox shows at most 100 recent updates from the latest 200 commits plus repository records. Read markers are per-user and browser-local (not synchronized across devices). It is a current activity/reminder view, not an exhaustive audit of every transient processing state, and does not send email or operating-system push messages. Student discussion links open the existing pending discussion queue.
+
+Faculty cohort context includes repository coverage, last commit activity and pending discussions. Future class import should add student ID, section, project title and supervisor only after the actual roster and access policy are supplied; no class data is fabricated.
+
+Groq capacity is shown from allowlisted response headers, including daily requests and minute-window tokens remaining and the observation time. Unknown values remain unknown. HTTP 429 activates the provider's Retry-After cooldown in the current backend process; saved work remains retriable. Output is capped at 2,400 tokens with bounded diff context. Limits are organization-wide, may change, and are not a billing balance or a guarantee against exhaustion. This does not implement a distributed quota reservation system. See https://console.groq.com/docs/rate-limits for authoritative limit semantics.

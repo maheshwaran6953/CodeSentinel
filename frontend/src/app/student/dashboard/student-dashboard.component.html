@@ -67,72 +67,18 @@
         </div>
       </div>
 
-      <!-- Quick Stats Grid -->
-      <div class="stats-grid">
-        <!-- Total Commits -->
-        <div class="card stat-card">
-          <div class="stat-header">
-            <span class="stat-title">Total Commits</span>
-            <div class="stat-icon icon-blue">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2">
-                <circle cx="12" cy="12" r="4"></circle>
-                <line x1="1.05" y1="12" x2="7" y2="12"></line>
-                <line x1="17" y1="12" x2="22.95" y2="12"></line>
-              </svg>
-            </div>
-          </div>
-          <div class="stat-value">{{ dashboardData.total_commits }}</div>
+      <section class="workspace-summary" aria-labelledby="workspace-title">
+        <div class="summary-heading"><span class="eyebrow">PROJECT WORKSPACE</span><h2 id="workspace-title">Your next steps</h2><p>Follow your work from repository activity to technical discussion.</p></div>
+        <div class="workspace-rows">
+          <a class="workspace-row" href="#commit-history"><span><strong>Development history</strong><small>Explore the individual changes behind your project</small></span><span class="workspace-value">{{dashboardData.total_commits}} commits ↗</span></a>
+          <div class="workspace-row"><span><strong>Style baseline</strong><small>Learning from authored code across meaningful development sessions</small></span><span class="workspace-value">{{dashboardData.baseline_status || 'learning'}}</span></div>
+          <a class="workspace-row" routerLink="/student/quiz-interrogation"><span><strong>Technical discussions</strong><small>{{dashboardData.pending_quizzes ? 'Questions are ready for your explanation' : 'No discussions waiting for a response'}}</small></span><span class="workspace-value">{{dashboardData.pending_quizzes}} pending →</span></a>
+          <div class="workspace-row"><span><strong>Faculty review</strong><small>Context and interpretation remain with your faculty</small></span><span class="workspace-value">{{dashboardData.flagged_commits}} surfaced events</span></div>
         </div>
-
-        <!-- Baseline -->
-        <div class="card stat-card">
-          <div class="stat-header">
-            <span class="stat-title">Baseline</span>
-            <div class="stat-icon icon-gray">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#888888" stroke-width="2">
-                <line x1="18" y1="20" x2="18" y2="10"></line>
-                <line x1="12" y1="20" x2="12" y2="4"></line>
-                <line x1="6" y1="20" x2="6" y2="14"></line>
-              </svg>
-            </div>
-          </div>
-          <div class="stat-value">{{ dashboardData.baseline_status || 'learning' }}</div>
-        </div>
-
-        <!-- Pending Quizzes -->
-        <div class="card stat-card stat-card-clickable" routerLink="/student/quiz-interrogation" title="Click to start Quiz Interrogation">
-          <div class="stat-header">
-            <span class="stat-title">Pending Quizzes</span>
-            <div class="stat-icon icon-blue">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0A84FF" stroke-width="2">
-                <circle cx="12" cy="12" r="10"></circle>
-                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-                <line x1="12" y1="17" x2="12.01" y2="17"></line>
-              </svg>
-            </div>
-          </div>
-          <div class="stat-value text-blue">{{ dashboardData.pending_quizzes }}</div>
-          <div class="stat-action-link">Start Interrogation &rarr;</div>
-        </div>
-
-        <!-- Flagged Commits -->
-        <div class="card stat-card stat-card-highlight">
-          <div class="highlight-bar"></div>
-          <div class="stat-header">
-            <span class="stat-title">Review events</span>
-            <div class="stat-icon icon-blue">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2">
-                <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
-                <line x1="4" y1="22" x2="4" y2="15"></line>
-              </svg>
-            </div>
-          </div>
-          <div class="stat-value">{{ dashboardData.flagged_commits }}</div>
-        </div>
-      </div>
+      </section>
 
       <!-- Recent Activity Table Section -->
-      <div class="card table-card">
+      <div class="card table-card" id="commit-history">
         <div class="table-header">
           <h2 class="table-title">Recent Activity</h2>
         </div>
@@ -152,7 +98,7 @@
               <tr *ngFor="let commit of dashboardData.recent_commits" class="table-row">
                 <!-- Message & SHA -->
                 <td class="td-left">
-                  <div class="commit-message">{{ commit.message }}</div>
+                  <a *ngIf="commit.url; else unlinkedCommit" class="commit-message" [href]="commit.url" target="_blank" rel="noopener noreferrer" [attr.aria-label]="commit.message + ' — open commit on GitHub in a new tab'">{{ commit.message }} ↗</a><ng-template #unlinkedCommit><span class="commit-message">{{commit.message}}</span></ng-template>
                   <div class="commit-sha">
                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#888888" stroke-width="2">
                       <circle cx="12" cy="12" r="4"></circle>
@@ -165,7 +111,7 @@
 
                 <!-- Date -->
                 <td class="td-left td-date">
-                  {{ commit.date }}
+                  {{ commit.date | date:'medium' }}
                 </td>
 
                 <!-- Lines Added/Removed -->
