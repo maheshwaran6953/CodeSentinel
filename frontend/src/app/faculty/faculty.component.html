@@ -6,21 +6,38 @@
     <p *ngIf="loading" role="status">Loading evidence...</p>
     <section class="card panel" *ngIf="!selected">
       <h2>Student cohort</h2><p *ngIf="!students.length">Students appear after their first GitHub sign in.</p>
-      <div class="table-responsive"><table class="activity-table"><thead><tr><th>Student</th><th>Active repositories</th><th>Commits</th><th>Authenticity indicator</th><th>Flagged</th></tr></thead>
-        <tbody><tr *ngFor="let s of students"><td><button class="text-button" (click)="openStudent(s.id)">{{s.name}} / {{s.github_login}}</button></td><td>{{s.repositories}}</td><td>{{s.commits}}</td><td>{{score(s.authenticity_score)}}</td><td>{{s.flagged}}</td></tr></tbody></table></div>
+      <div class="table-responsive"><table class="activity-table"><thead><tr><th>Student</th><th>Active repositories</th><th>Commits</th><th>Evidence status</th><th>Review events</th></tr></thead>
+        <tbody><tr *ngFor="let s of students"><td><button class="text-button" (click)="openStudent(s.id)">{{s.name}} / {{s.github_login}}</button></td><td>{{s.repositories}}</td><td>{{s.commits}}</td><td>{{s.evidence_status}}</td><td>{{s.flagged}}</td></tr></tbody></table></div>
     </section>
     <ng-container *ngIf="selected">
       <button class="btn-primary" (click)="selected=null;evidence=null">Back to cohort</button>
       <section class="card panel"><h2>{{selected.student.name}}</h2>
         <p *ngFor="let r of selected.repositories">{{r.full_name}} — {{r.active?'Authorized':'Access removed'}} · Last signed delivery: {{r.last_webhook_at ? (r.last_webhook_at | date:'medium') : 'Awaiting first delivery'}}</p>
         <p *ngIf="!selected.repositories.length">No repository linked.</p>
-        <div class="table-responsive"><table class="activity-table"><thead><tr><th>Commit</th><th>Date</th><th>Changes</th><th>Authenticity / risk</th><th>Status</th></tr></thead>
-          <tbody><tr *ngFor="let c of selected.commits"><td><button class="text-button" (click)="openCommit(c.id)">{{c.message || 'Queued commit'}}</button><small>{{c.full_name}} · {{c.sha | slice:0:10}}</small></td><td>{{c.committed_at | date:'medium'}}</td><td>+{{c.additions}} / -{{c.deletions}}</td><td>{{score(c.authenticity_score)}} / {{score(c.risk_score)}}</td><td>{{c.status}} {{c.flagged?'· Flagged':''}}<small>Baseline: {{c.baseline || 'learning'}}</small></td></tr></tbody></table></div>
+        <div class="table-responsive"><table class="activity-table"><thead><tr><th>Commit</th><th>Date</th><th>Changes</th><th>Evidence status</th><th>Status</th></tr></thead>
+          <tbody><tr *ngFor="let c of selected.commits"><td><button class="text-button" (click)="openCommit(c.id)">{{c.message || 'Queued commit'}}</button><small>{{c.full_name}} · {{c.sha | slice:0:10}}</small></td><td>{{c.committed_at | date:'medium'}}</td><td>+{{c.additions}} / -{{c.deletions}}</td><td>{{c.evidence.status}}</td><td>{{c.status}} {{c.flagged?'· Review event':''}}<small>Baseline: {{c.baseline || 'learning'}}</small></td></tr></tbody></table></div>
       </section>
     </ng-container>
     <ng-container *ngIf="evidence">
       <section class="card panel"><h2>{{evidence.commit.message}}</h2><p>{{evidence.commit.sha}}</p>
-        <p>Authenticity indicator {{score(evidence.commit.authenticity_score)}} · Risk {{score(evidence.commit.risk_score)}} · Quiz {{evidence.commit.quiz_status}}</p>
+        <h3>{{evidence.commit.evidence.status}}</h3>
+        <p>No calibrated authorship probability is available. Final interpretation belongs to faculty.</p>
+        <ul><li *ngFor="let reason of evidence.commit.evidence.reasons">{{reason}}</li></ul>
+        <p *ngIf="evidence.commit.evidence.abstained"><strong>Abstention:</strong> Available evidence does not support a strong authorship judgment.</p>
+        <ng-container *ngIf="evidence.commit.evidence.baseline.observed as b">
+          <p>History: {{b.historyCommits}} commits; {{b.meaningfulCommits}} meaningful changes; {{b.files}} distinct source files; {{b.sourceLines}} observed source lines; {{b.functions}} functions.</p>
+          <p>{{b.sessions}} timestamp-separated commit groups across {{b.spreadDays | number:'1.0-1'}} days. This does not measure working time.</p>
+        </ng-container>
+        <div class="table-responsive" *ngIf="evidence.commit.evidence.stylometry">
+          <table class="activity-table"><thead><tr><th>Source file</th><th>Parsing</th><th>AST nodes</th><th>Style deviation</th></tr></thead>
+            <tbody><tr *ngFor="let f of evidence.commit.evidence.stylometry.files"><td>{{f.path}}</td><td>{{f.status}}</td><td>{{f.nodes}}</td><td>{{f.comparison ? (f.comparison.distance | number:'1.0-2') : 'No comparable history'}}</td></tr></tbody></table>
+          <p>Deviations are descriptive standardized distances, not probabilities. Function/class details are in AST evidence below.</p>
+        </div>
+        <details *ngIf="evidence.commit.signals?.gradingAttempts"><summary>Failed grading attempts (preserved provider output)</summary><pre>{{evidence.commit.signals.gradingAttempts | json}}</pre></details>
+        <details open><summary>Baseline maturity and history coverage</summary><pre>{{evidence.commit.evidence.baseline | json}}</pre></details>
+        <details open><summary>Development continuity - structural observations</summary><pre>{{evidence.commit.evidence.continuity | json}}</pre></details>
+        <details><summary>Push / commit sequence</summary><pre>{{evidence.commit.signals?.developmentEvent | json}}</pre></details>
+        <details><summary>Model availability and uncertainty</summary><pre>{{evidence.commit.evidence.model | json}}</pre><pre>{{evidence.commit.evidence.uncertainty | json}}</pre></details>
         <p *ngIf="evidence.commit.error">{{evidence.commit.error}}</p>
         <ul><li *ngFor="let reason of evidence.commit.reasons">{{reason}}</li></ul>
         <button class="btn-primary" *ngIf="['failed','partial','queued'].includes(evidence.commit.status) || ['failed','pending'].includes(evidence.commit.quiz_status)" (click)="retry()">Retry failed work</button>
@@ -28,19 +45,19 @@
         <details><summary>AST and model evidence</summary><pre>{{evidence.commit.stylometry | json}}</pre></details>
         <details><summary>Included and excluded files</summary><pre>{{evidence.commit.files | json}}</pre></details>
         <details><summary>Commit diff (bounded context)</summary><pre>{{evidence.commit.diff}}</pre></details>
-        <details><summary>Score calculation and history</summary><pre>{{evidence.commit.signals | json}}</pre><pre>{{evidence.scoreHistory | json}}</pre></details>
+        <details><summary>Historical analysis audit (legacy numbers are not probabilities)</summary><pre>{{evidence.commit.signals | json}}</pre><pre>{{evidence.scoreHistory | json}}</pre></details>
       </section>
       <section class="card panel"><h2>Technical interrogation</h2><p *ngIf="!evidence.questions.length">No questions available. Generation status: {{evidence.commit.quiz_status}}.</p>
         <article *ngFor="let q of evidence.questions"><h3>{{q.ordinal+1}}. {{q.question_text}}</h3><p><strong>Rubric:</strong> {{q.rubric}}</p>
           <p><strong>Answer {{q.is_draft?'(draft)':''}}:</strong> {{q.answer_text || 'Awaiting response'}}</p><p *ngIf="q.grading_error">{{q.grading_error}}</p>
-          <div *ngIf="q.result"><p>Understanding: {{q.result.score}}% · Confidence: {{q.result.confidence}}</p><p>{{q.result.explanation}}</p><details><summary>Rubric scores</summary><pre>{{q.result | json}}</pre></details></div>
+          <div *ngIf="q.result"><p>LLM rubric points: {{q.result.score}} / 100; Self-reported confidence (uncalibrated): {{q.result.confidence}}</p><p>{{q.result.explanation}}</p><details><summary>Rubric scores</summary><pre>{{q.result | json}}</pre></details></div>
         </article>
       </section>
-      <section class="card panel"><h2>Faculty review</h2><p>The original analysis remains recorded. Reviews annotate the evidence.</p>
+      <section class="card panel"><h2>Faculty review</h2><p>The original analysis remains recorded. Reviews annotate the evidence, including questionable LLM grades. Identify the question and disputed reasoning in your review.</p>
         <form (ngSubmit)="override()"><label>Classification <select [(ngModel)]="action" name="action"><option value="legitimate">Legitimate anomaly</option><option value="needs_review">Needs further review</option><option value="note">Add context</option></select></label>
           <label>Reason <textarea [(ngModel)]="reason" name="reason" minlength="10" maxlength="2000" required rows="3" placeholder="Explain the migration, refactoring, collaboration or other context."></textarea></label>
           <button class="btn-primary" [disabled]="reason.trim().length<10 || saving">{{saving?'Saving...':'Save review'}}</button></form>
-        <p role="status">{{notice}}</p><article *ngFor="let o of evidence.overrides"><strong>{{o.action}} · {{o.faculty_name}} · {{o.created_at | date:'medium'}}</strong><p>{{o.reason}}</p><details><summary>Original analysis at review time</summary><pre>{{o.original_analysis | json}}</pre></details></article>
+        <button class="btn-primary" [disabled]="reason.trim().length<10 || saving" (click)="requestDiscussion()">Request technical discussion with this reason</button><p role="status">{{notice}}</p><article *ngFor="let o of evidence.overrides"><strong>{{o.action}} · {{o.faculty_name}} · {{o.created_at | date:'medium'}}</strong><p>{{o.reason}}</p><details><summary>Original analysis at review time</summary><pre>{{o.original_analysis | json}}</pre></details></article>
       </section>
     </ng-container>
   </div></main>

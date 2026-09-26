@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testin
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { QuizInterrogationComponent } from './quiz-interrogation.component';
 import { QuizService } from '../../services/quiz.service';
 import { QuizSession, LLMGradingResult } from '../../models/quiz.model';
@@ -106,6 +106,8 @@ describe('QuizInterrogationComponent', () => {
     expect(component.currentResult).toEqual(mockResult);
 
     jasmine.clock().tick(1600); // auto-advance timer
+    expect(component.currentQuestionIndex).toBe(0);
+    component.nextQuestion();
     expect(component.currentQuestionIndex).toBe(1);
     jasmine.clock().uninstall();
   });
@@ -131,4 +133,27 @@ describe('QuizInterrogationComponent', () => {
     component.confirmExit();
     expect(mockRouter.navigate).toHaveBeenCalledWith(['/student/dashboard']);
   });
+  it('reconciles a failed retry to the immutable server answer and disables editing', fakeAsync(() => {
+    const session=structuredClone(mockSession);
+    session.answers['q1']={questionId:'q1',answerText:'The original saved technical explanation.',isDraft:false,gradingStatus:'failed'};
+    mockQuizService.getQuizSession.and.returnValue(of(session));
+    mockQuizService.submitAnswer.and.returnValue(throwError(()=>({error:{message:'Grading unavailable'}})));
+    component.answerText='A different response visible before reconciliation.';
+    component.submitAnswer();fixture.detectChanges();tick();fixture.detectChanges();
+    expect(component.answerText).toBe(session.answers['q1'].answerText);
+    expect(component.answerLocked).toBeTrue();
+    expect(fixture.nativeElement.querySelector('textarea').disabled).toBeTrue();
+    expect(fixture.nativeElement.textContent).toContain('Retry grading saved answer');
+    component.saveDraft();expect(mockQuizService.saveDraft).not.toHaveBeenCalled();
+  }));
+
+  it('blocks editing and resubmission when saved state cannot be confirmed', () => {
+    mockQuizService.getQuizSession.and.returnValue(throwError(()=>new Error('offline')));
+    mockQuizService.submitAnswer.and.returnValue(throwError(()=>new Error('timeout')));
+    component.answerText='A technical response long enough to submit.';
+    component.submitAnswer();
+    expect(component.submissionUncertain).toBeTrue();expect(component.answerLocked).toBeTrue();
+    component.submitAnswer();expect(mockQuizService.submitAnswer).toHaveBeenCalledTimes(1);
+  });
+
 });

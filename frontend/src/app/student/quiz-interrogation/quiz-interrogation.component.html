@@ -89,11 +89,12 @@
         </span>
       </div>
 
+      <p *ngIf="answerLocked">This is the exact submitted response. It cannot be edited. Retrying grades this saved response only.</p>
       <div class="textarea-wrapper">
         <textarea
           id="answerText"
           class="answer-textarea"
-          [disabled]="isGrading || showFeedback"
+          [disabled]="isGrading || showFeedback || answerLocked"
           placeholder="Provide a detailed technical reasoning for this implementation choice..."
           [(ngModel)]="answerText"
           rows="6"
@@ -111,7 +112,7 @@
       <div class="spinner spinner-lg"></div>
       <div class="grading-overlay-text">
         <h3 class="grading-title">Analyzing your explanation with AI...</h3>
-        <p class="grading-sub">CodeSentinel LLM is evaluating your technical reasoning for authenticity.</p>
+        <p class="grading-sub">CodeSentinel LLM is evaluating your technical explanation as supporting evidence.</p>
       </div>
     </div>
 
@@ -119,14 +120,15 @@
     <div class="card feedback-card" *ngIf="showFeedback && currentResult" [ngClass]="'feedback-' + currentResult.status">
       <div class="feedback-card-header">
         <div class="feedback-badge-score">
-          <span class="score-number">{{ currentResult.score }}%</span>
-          <span class="score-label">Technical Understanding</span>
+          <span class="score-number">{{ currentResult.score }} / 100</span>
+          <span class="score-label">LLM rubric points</span>
         </div>
         <div class="feedback-status-pill" [ngClass]="currentResult.status">
-          {{ currentResult.status === 'passed' ? 'Passed' : (currentResult.status === 'needs_improvement' ? 'Needs Improvement' : 'Failed') }}
+          Faculty-reviewable assessment
         </div>
       </div>
 
+      <p>LLM assessment can be mistaken. Faculty can review this rationale; it is not a misconduct decision.</p>
       <p class="feedback-message-text">{{ currentResult.feedback }}</p>
     </div>
   </main>
@@ -147,8 +149,8 @@
       <!-- Score Summary Grid -->
       <div class="score-summary-grid">
         <div class="summary-score-box">
-          <span class="summary-score-value text-blue">{{ avgScore }}%</span>
-          <span class="summary-score-label">Average Score</span>
+          <span class="summary-score-value text-blue">{{ avgScore }} / 100</span>
+          <span class="summary-score-label">Average LLM rubric points</span>
         </div>
         <div class="summary-score-box">
           <span class="summary-score-value text-green">{{ totalScore }}</span>
@@ -167,8 +169,9 @@
             </div>
             <div class="breakdown-item-footer" *ngIf="quizSession.answers[q.id]">
               <span class="breakdown-score" [ngClass]="(quizSession.answers[q.id].result?.score || 0) >= 80 ? 'text-green' : 'text-yellow'">
-                Score: {{ quizSession.answers[q.id].result?.score }}%
+                Score: {{ quizSession.answers[q.id].result?.score }} / 100
               </span>
+              <p><strong>Submitted response:</strong> {{quizSession.answers[q.id].answerText}}</p>
               <p class="breakdown-feedback">{{ quizSession.answers[q.id].result?.feedback }}</p>
             </div>
           </div>
@@ -193,7 +196,7 @@
       <button 
         (click)="saveDraft()" 
         class="btn-secondary" 
-        [disabled]="isGrading || isSavingDraft || !answerText"
+        [disabled]="isGrading || isSavingDraft || !answerText || answerLocked"
       >
         {{ isSavingDraft ? 'Saving...' : 'Save as Draft' }}
       </button>
@@ -202,9 +205,9 @@
         *ngIf="!showFeedback"
         (click)="submitAnswer()" 
         class="btn-primary flex-2" 
-        [disabled]="!isValidAnswer || isGrading"
+        [disabled]="!isValidAnswer || isGrading || submissionUncertain"
       >
-        {{ isGrading ? 'Grading...' : 'Submit Answer' }}
+        {{ isGrading ? 'Grading...' : answerLocked ? 'Retry grading saved answer' : 'Submit Answer' }}
       </button>
 
       <button 

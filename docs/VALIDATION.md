@@ -280,3 +280,39 @@ Current blockers: free local memory and rerun regressions; deploy the strict gra
 FINAL PROJECT STATUS: NOT YET DEMO READY
 
 Memory recovery: after the user freed memory, all 15 backend tests, all 6 ML tests, frontend production build and all 21 ChromeHeadless tests passed. Both isolated local PostgreSQL/Redis HTTP and workflow integration tests passed (2/2). The existing frontend bundle-size warning remains non-fatal. Strict-schema grading is ready for deployment.
+
+2026-09-24 continuation: commit 726fd93 was published with the strict Groq grading schema after all regression suites passed. Read-only hosted inspection confirms the test quiz remains pending: question 0 retains its failed submission for retry, and questions 1/2 have no responses. Render deployment completion and the successful browser retry are not yet verified. The prior in-app browser automation tool is unavailable in this session; manual browser continuation is required. No hosted application data was changed during these checks.
+
+## Grading and scoring audit — user-reported realism issue
+
+Read-only hosted inspection confirmed grades 72, 0, 0 for the live reporting quiz. Question 0 graded the original labelled technical test explanation retained after its earlier provider failure; the later pasted instructions did not replace that immutable submission. Questions 1 and 2 stored the pasted operational instructions and received zero for irrelevance. The editable retry UI obscures this behavior and needs to clearly display/lock the already submitted answer before a retry. No stored answers or grades were changed during this audit.
+
+The first grade's explanation contains questionable technical expectations about tuple memory, thread safety and caching. Schema compliance is not evidence of grading correctness; rubric grounding and human review remain unresolved quality requirements.
+
+The 92-line feature was flagged against nine nearly identical 7–9-line test increments (additions z=9.4517, threshold 3), alongside a naming-style change (standardized AST distance 7.1843, snake/camel features). Both heuristic signals saturated at 100. The deployed model explicitly reports not_trained. The weighted combination (velocity 30%, stylometry 40%, quiz 30%) produced 7.2 authenticity after a 24 average quiz score. These numbers are not calibrated authorship probabilities. Calling this short, correlated test history stable and presenting such a percentage can mislead users about normal feature development. The demonstration history is not representative training or validation data.
+
+Real Groq grading and hosted persistence are now verified, but scientific validity and realistic false-positive behavior are not. The user requests replacing unsupported heuristic authorship judgments with a credible learned/evidence-based approach. Dataset availability and behavior while a model is unvalidated must be agreed before changing the scoring architecture. Existing evidence is preserved.
+
+FINAL PROJECT STATUS: NOT YET DEMO READY
+
+
+## Longitudinal evidence implementation — 2026-09-26
+
+Supersedes the heuristic score interpretation in earlier chronological validation notes. The old records remain unchanged for audit.
+
+Implemented: versioned evidence/abstention; volume-only trigger removal; multi-dimensional and language-specific baseline coverage; deduplicated snapshots; same-repository parent-chain continuity; per-file and function/class AST observations; repository structural evolution; test/import/call/symbol references; explicit exclusions and limits; neutral faculty-requested discussion; no automatic training from unverified GitHub identities; retained XGBoost training/reload infrastructure; immutable answer/retry reconciliation; raw provider/rubric/submission audit; faculty review snapshots including grades; evidence-led dashboards with null new authenticity/risk outputs. Existing JSONB storage is extended without schema changes or destructive migrations.
+
+Verified locally on 2026-09-26:
+
+- Backend TypeScript build and 23 tests pass, including real embedded PostgreSQL/tree-sitter service contracts, HMAC, role restrictions, abstention, bulk changes, one divergent module among matching files, ancestry ordering and immutable submission retries.
+- Python 8/8 tests pass, including real XGBoost train/reload on explicitly test-only data and refusal to train on ordinary unverified histories.
+- Angular production build passes. Existing 500 kB bundle warning remains (approximately 519 kB); it is not hidden.
+- ChromeHeadless 24/24 tests pass, including exact saved-answer reconciliation and preventing legacy percentage display. Chrome initially failed within the filesystem sandbox; normal OS access resolved its startup limitation. No browser security controls were disabled.
+- Real local PostgreSQL + Redis/BullMQ and NestJS HTTP integration tests pass 2/2. Initial ECONNREFUSED was caused by the stopped local Docker engine; existing validation services were started and tests rerun. No hosted fixture data was inserted.
+- Two real Groq requests passed against the revised local implementation: three questions generated (2,523 tokens), structured grade/audit returned (2,085 tokens). Total 4,608 tokens; no database writes, key changes, plan changes or quota exhaustion test. These calls verify transport/schema/provenance, not grading accuracy or authorship validity.
+
+Limits: continuity establishes structural relationships, not feature-semantic correctness; unmarked scaffolding is not reliably identifiable. Initial import and ancestry windows remain bounded. Baseline coverage requirements and review routing are transparent operational policies, not scientifically validated predictors. No consented independently labelled dataset or calibrated model exists. Historical raw provider responses that were previously discarded cannot be reconstructed. This implementation has not yet been verified in the deployed authenticated browser flow.
+
+Remaining release checks: publish and verify the revised Render/Vercel deployment, then exercise evidence displays, a real newly analyzed commit, immutable grading retry and faculty discussion/review in the live browser. Earlier deferred PR/redelivery and non-allowlisted faculty tests remain separately outstanding.
+
+FINAL PROJECT STATUS: NOT YET DEMO READY

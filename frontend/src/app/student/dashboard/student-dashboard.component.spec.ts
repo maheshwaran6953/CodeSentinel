@@ -85,4 +85,10 @@ describe('StudentDashboardComponent', () => {
     expect(mockAuthService.logout).toHaveBeenCalled();
     expect(mockRouter.navigate).toHaveBeenCalledWith(['/login']);
   });
+  it('never renders legacy authenticity percentages as evidence', () => {
+    const text=fixture.nativeElement.textContent;
+    expect(text).toContain('Insufficient evidence');
+    expect(text).not.toContain('85%');expect(text).not.toContain('92%');
+  });
+
 });

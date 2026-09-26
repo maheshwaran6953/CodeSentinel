@@ -17,11 +17,11 @@ export class FacultyComponent implements OnInit,OnDestroy {
   }
   openStudent(id:string,clear=true) {
     if(clear) {this.evidence=null;this.loading=true;}
-    this.http.get(`/faculty/students/${id}`).pipe(takeUntil(this.destroy$)).subscribe({next:r=>{this.selected=r;this.loading=false;},error:e=>this.fail(e)});
+    this.http.get(`/faculty/students/${id}`).pipe(takeUntil(this.destroy$)).subscribe({next:r=>{const value=r as any;this.selected={...value,commits:value.commits.map((c:any)=>({...c,evidence:c.evidence || this.unavailableEvidence()}))};this.loading=false;},error:e=>this.fail(e)});
   }
   openCommit(id:string,clear=true) {
     if(clear) {this.loading=true;this.reason='';this.notice='';}
-    this.http.get(`/faculty/commits/${id}`).pipe(takeUntil(this.destroy$)).subscribe({next:r=>{this.evidence=r;this.loading=false;},error:e=>this.fail(e)});
+    this.http.get(`/faculty/commits/${id}`).pipe(takeUntil(this.destroy$)).subscribe({next:r=>{const value=r as any;this.evidence={...value,commit:{...value.commit,evidence:value.commit.evidence || this.unavailableEvidence()}};this.loading=false;},error:e=>this.fail(e)});
   }
   override() {
     if(!this.evidence || this.reason.trim().length<10 || this.saving) return;
@@ -33,6 +33,15 @@ export class FacultyComponent implements OnInit,OnDestroy {
   retry() {
     this.http.post(`/faculty/commits/${this.evidence.commit.id}/retry`,{}).subscribe({next:()=>{this.notice='Retry queued.';this.refresh();},error:e=>this.fail(e)});
   }
+  requestDiscussion() {
+    if(!this.evidence || this.reason.trim().length<10 || this.saving) return;
+    this.saving=true;
+    this.http.post(`/faculty/commits/${this.evidence.commit.id}/discussion`,{action:'note',reason:this.reason}).subscribe({
+      next:()=>{this.saving=false;this.reason='';this.notice='Technical discussion requested; this is not an accusation.';this.refresh();},
+      error:e=>{this.saving=false;this.fail(e);}
+    });
+  }
+  private unavailableEvidence() {return {status:'Legacy evidence - server update pending',abstained:true,reasons:['No current evidence assessment is available.'],baseline:{status:'not_assessed'}};}
   score(value:number|null) {return value===null || value===undefined ? 'Learning / unavailable' : `${Math.round(value)}%`;}
   private fail(e:any) {this.loading=false;this.error=e.error?.message || 'Unable to load data. Check your session and retry.';}
 }

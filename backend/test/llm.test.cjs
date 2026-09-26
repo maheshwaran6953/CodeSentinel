@@ -51,7 +51,7 @@ test('Groq grading uses rubric weights and rejects invalid score ranges',async()
     explanation:'The answer identifies the invariant and tradeoff.',confidence:0.8};
   await transport(async()=>response({...grade,score:100}),async llm=>{
     const result=await llm.grade({question_text:question.questionText,rubric:question.rubric,diff:'code'},'A technical explanation.');
-    assert.equal(result.score,73);assert.equal(result.rubricVersion,'1.0');
+    assert.equal(result.score,73);assert.equal(result.rubricVersion,'2.0');
   });
   await transport(async()=>response({...grade,technicalCorrectness:101}),async llm=>{
     await assert.rejects(llm.grade({},'A technical explanation.'),e=>e.getStatus()===503);

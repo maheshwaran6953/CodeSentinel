@@ -18,8 +18,9 @@ test('actual NestJS HTTP startup, session roles, DTOs, CSRF and raw-body webhook
     GITHUB_CALLBACK_URL:'http://localhost:3301/auth/github/callback'};
   const child=spawn(process.execPath,['dist/main.js'],{env,windowsHide:true,stdio:['ignore','pipe','pipe']});
   let startup='';child.stdout.on('data',d=>startup+=d);child.stderr.on('data',d=>startup+=d);
-  const db=new Client({connectionString:env.DATABASE_URL});await db.connect();
+  const db=new Client({connectionString:env.DATABASE_URL});
   try {
+    await db.connect();
     let ready=false;
     for(let i=0;i<80;i++) {
       try {ready=(await fetch('http://localhost:3301/health/ready')).ok;} catch {}

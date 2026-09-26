@@ -65,6 +65,12 @@ export class QuizInterrogationComponent implements OnInit, OnDestroy {
     return this.quizSession.questions[this.currentQuestionIndex] || null;
   }
 
+  submissionUncertain = false;
+  get answerLocked(): boolean {
+    const answer = this.currentQuestion && this.quizSession?.answers[this.currentQuestion.id];
+    return this.submissionUncertain || !!(answer && answer.isDraft === false);
+  }
+
   /**
    * Real-time character count
    */
@@ -98,6 +104,7 @@ export class QuizInterrogationComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (session) => {
+          this.submissionUncertain = false;
           this.quizSession = session;
           this.currentQuestionIndex = session?.currentQuestionIndex || 0;
           this.loadExistingAnswer();
@@ -137,7 +144,7 @@ export class QuizInterrogationComponent implements OnInit, OnDestroy {
    * Submit Answer for LLM Grading
    */
   submitAnswer(): void {
-    if (!this.isValidAnswer || !this.currentQuestion || this.isGrading) return;
+    if (!this.isValidAnswer || !this.currentQuestion || this.isGrading || this.submissionUncertain) return;
 
     this.isGrading = true;
     this.error = '';
@@ -154,14 +161,19 @@ export class QuizInterrogationComponent implements OnInit, OnDestroy {
           if (this.quizSession) this.quizSession.answers[qId] = { questionId: qId, answerText: this.answerText, result, isDraft: false, submittedAt: new Date().toISOString() };
           this.showFeedback = true;
 
-          // Auto advance to next question after 1.5 seconds if not on last question
-          this.autoAdvanceTimer = setTimeout(() => {
-            this.nextQuestion();
-          }, 1500);
+          // Keep the exact answer and rationale visible until the student chooses Next.
         },
         error: (err) => {
           this.isGrading = false;
-          this.error = err.error?.message || 'Grading failed. Your submitted answer is saved; retry to grade it.';
+          this.error = err.error?.message || 'Submission status uncertain. Reload before retrying.';
+          this.submissionUncertain = true;
+          // Reconcile with the server before enabling edits/retry: a timeout may follow a saved submission.
+          this.quizService.getQuizSession().pipe(takeUntil(this.destroy$)).subscribe({
+            next: session => {
+              if (session) { this.quizSession=session; this.submissionUncertain=false; this.loadExistingAnswer(); }
+              else { this.loadQuizSession(); }
+            }, error: () => { this.error='Unable to confirm the saved response. Reload before editing or retrying.'; }
+          });
         }
       });
   }
@@ -170,7 +182,7 @@ export class QuizInterrogationComponent implements OnInit, OnDestroy {
    * Save Answer as Draft
    */
   saveDraft(): void {
-    if (!this.currentQuestion || !this.answerText) return;
+    if (!this.currentQuestion || !this.answerText || this.answerLocked) return;
 
     this.isSavingDraft = true;
     this.quizService.saveDraft(this.currentQuestion.id, this.answerText)
@@ -224,7 +236,7 @@ export class QuizInterrogationComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Calculate final total & average authenticity scores upon quiz completion
+   * Calculate supporting LLM rubric points upon quiz completion
    */
   calculateFinalScores(): void {
     if (!this.quizSession) return;
@@ -251,7 +263,7 @@ export class QuizInterrogationComponent implements OnInit, OnDestroy {
       return;
     }
 
-    if (this.answerText.trim().length > 0 && !this.showFeedback) {
+    if (this.answerText.trim().length > 0 && !this.showFeedback && !this.answerLocked) {
       this.showConfirmExitModal = true;
     } else {
       this.router.navigate(['/student/dashboard']);

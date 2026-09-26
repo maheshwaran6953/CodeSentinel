@@ -14,7 +14,7 @@ export function velocity(current: Metrics, history: Metrics[], threshold = 3) {
   }
   const z = Math.max(0,...Object.values(details).map(d => d.z));
   const reasons = mature ? Object.entries(details).filter(([,d]) => d.z >= threshold).map(([key,d]) => `${key} differs from personal history (z=${d.z.toFixed(2)}, threshold=${threshold})`) : [];
-  return { metrics: current, historyCount: history.length, maturity: mature ? 'stable' : 'learning', threshold, z,
+  return { metrics: current, historyCount: history.length, maturity: mature ? 'statistical_samples_available' : 'learning', threshold, z,
     risk: mature ? Math.min(100,z/6*100) : null, flagged: reasons.length>0, reasons, details };
 }
 export function combine(velocityRisk: number | null, stylometryRisk: number | null, quizScore: number | null) {

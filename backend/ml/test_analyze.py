@@ -26,7 +26,7 @@ class StylometryTests(unittest.TestCase):
         result = assess({'studentId':'one','files':[{'path':'a.py','source':'def value(x):\n    return x\n'}],'history':[]})
         self.assertIsNone(result['risk'])
         self.assertFalse(result['flagged'])
-        self.assertEqual(result['languages'][0]['modelStatus'],'not_trained')
+        self.assertEqual(result['languages'][0]['modelStatus'],'unavailable')
 
     def test_invalid_source_is_reported(self):
         self.assertEqual(extract('def (broken', 'py')['status'], 'parse_error')
@@ -44,11 +44,15 @@ class StylometryTests(unittest.TestCase):
             value = extract(source,'py')
             history.extend({'student_id':str(i),'features':{'py':{'version':VERSION,'nodes':value['nodes'],'vector':value['vector']}}} for _ in range(10))
         payload = {'studentId':'0','files':[{'path':'a.py','source':styles[0]}],'history':history}
+        self.assertEqual(assess(payload)['languages'][0]['modelStatus'], 'unavailable')
+        # Test-only training authorization exercises infrastructure, not a validation claim.
+        payload['trainingDataset'] = {'id':'synthetic-unit-test-only','consented':True,'independentlyVerified':True}
         with tempfile.TemporaryDirectory() as directory, patch.dict('os.environ', {'MODEL_DIRECTORY':directory}):
             first = assess(payload)['languages'][0]
             second = assess(payload)['languages'][0]
         self.assertEqual(first['modelStatus'],'experimental_trained')
-        self.assertEqual(first['method'],'xgboost_experimental')
+        self.assertEqual(first['modelMethod'],'xgboost_experimental')
+        self.assertIsNone(first['authorshipProbability'])
         self.assertEqual(first['modelVersion'],second['modelVersion'])
         self.assertGreater(first['uncalibratedConsistency'],0)
 
@@ -59,7 +63,26 @@ class StylometryTests(unittest.TestCase):
         result = assess({'studentId':'one','files':[{'path':'a.py','source':source}],'history':history})
         self.assertAlmostEqual(result['risk'],0)
         self.assertEqual(result['languages'][0]['method'],'standardized_ast_distance')
-        self.assertEqual(result['languages'][0]['modelStatus'],'not_trained')
+        self.assertEqual(result['languages'][0]['modelStatus'],'unavailable')
+        self.assertEqual(result['maturity'],'learning')
+
+    def test_structural_artifacts_and_function_comparison(self):
+        source = 'import json\n\ndef parse_value(input_value):\n    return json.loads(input_value)\n'
+        first = assess({'studentId':'one','files':[{'path':'a.py','source':source}],'history':[]})
+        self.assertEqual(first['files'][0]['symbols'][0]['name'], 'parse_value')
+        self.assertEqual(first['files'][0]['imports'], ['import json'])
+        self.assertIn('json.loads',first['files'][0]['calls'])
+        history = [{'student_id':'one','features':first['features'],'artifacts':first['files']} for _ in range(3)]
+        second = assess({'studentId':'one','files':[{'path':'a.py','source':source}],'history':history})
+        self.assertEqual(second['files'][0]['comparison']['distance'], 0)
+        self.assertEqual(second['files'][0]['symbols'][0]['comparison']['distance'], 0)
+
+    def test_excluded_history_without_features_is_not_a_model_input(self):
+        result = assess({'studentId':'one','files':[{'path':'a.py','source':'def value(x):\n    return x\n'}],
+                         'history':[{'student_id':'one','features':None,'artifacts':[]}]})
+        self.assertEqual(result['files'][0]['status'],'parsed')
+        self.assertEqual(result['languages'][0]['historyCount'],0)
+        self.assertIsNone(result['risk'])
 
 if __name__ == '__main__':
     unittest.main()

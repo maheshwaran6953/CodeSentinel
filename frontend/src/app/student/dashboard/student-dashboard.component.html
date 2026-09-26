@@ -30,7 +30,7 @@
       <!-- Title Section -->
       <div class="header-section">
         <h1 class="page-title">Dashboard</h1>
-        <p class="page-subtitle">Your integrity overview</p>
+        <p class="page-subtitle">Your development history</p>
       </div>
 
       <!-- Linked Repository Card -->
@@ -58,30 +58,12 @@
         </div>
       </div>
 
-      <!-- Hero Authenticity Card -->
       <div class="card authenticity-card">
         <div class="authenticity-metrics">
-          <span class="metric-label">Authenticity indicator</span>
-          <div class="metric-value">{{ dashboardData.authenticity_score === null ? 'Learning' : dashboardData.authenticity_score + '%' }}</div>
-          <p>Evidence for review, not proof of misconduct. Scores appear when sufficient history is available.</p>
-          <div class="metric-status" [ngClass]="dashboardData.authenticity_level.toLowerCase()">
-            {{ dashboardData.authenticity_level }}
-          </div>
-        </div>
-
-        <div class="authenticity-gauge-wrapper">
-          <div class="gauge-container">
-            <svg class="gauge-svg" viewBox="0 0 120 120">
-              <!-- Background Circle -->
-              <circle class="gauge-bg" cx="60" cy="60" r="50"></circle>
-              <!-- Progress Circle (85%) -->
-              <circle class="gauge-progress" cx="60" cy="60" r="50" 
-                      [style.strokeDasharray]="314"
-                      [style.strokeDashoffset]="314 - (314 * (dashboardData.authenticity_score ?? 0)) / 100">
-              </circle>
-            </svg>
-            <div class="gauge-text">{{ dashboardData.authenticity_score === null ? '—' : dashboardData.authenticity_score + '%' }}</div>
-          </div>
+          <span class="metric-label">Evidence status</span>
+          <h2>{{ dashboardData.evidence_status || 'Insufficient evidence' }}</h2>
+          <p>Baseline: {{ dashboardData.baseline_status || 'learning' }}.</p>
+          <p>Observations support faculty review. No validated authorship probability is available.</p>
         </div>
       </div>
 
@@ -102,10 +84,10 @@
           <div class="stat-value">{{ dashboardData.total_commits }}</div>
         </div>
 
-        <!-- Average Score -->
+        <!-- Baseline -->
         <div class="card stat-card">
           <div class="stat-header">
-            <span class="stat-title">Average Score</span>
+            <span class="stat-title">Baseline</span>
             <div class="stat-icon icon-gray">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#888888" stroke-width="2">
                 <line x1="18" y1="20" x2="18" y2="10"></line>
@@ -114,7 +96,7 @@
               </svg>
             </div>
           </div>
-          <div class="stat-value">{{ dashboardData.avg_score === null ? '—' : dashboardData.avg_score + '%' }}</div>
+          <div class="stat-value">{{ dashboardData.baseline_status || 'learning' }}</div>
         </div>
 
         <!-- Pending Quizzes -->
@@ -137,7 +119,7 @@
         <div class="card stat-card stat-card-highlight">
           <div class="highlight-bar"></div>
           <div class="stat-header">
-            <span class="stat-title">Flagged</span>
+            <span class="stat-title">Review events</span>
             <div class="stat-icon icon-blue">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2">
                 <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
@@ -162,7 +144,7 @@
                 <th class="th-left">MESSAGE & SHA</th>
                 <th class="th-left">DATE</th>
                 <th class="th-center">LINES +/-</th>
-                <th class="th-center">SCORE</th>
+                <th class="th-center">EVIDENCE</th>
                 <th class="th-center">STATUS</th>
               </tr>
             </thead>
@@ -193,8 +175,8 @@
 
                 <!-- Score Pill -->
                 <td class="td-center">
-                  <span class="score-pill" [ngClass]="(commit.score ?? 0) >= 80 ? 'score-high' : 'score-low'">
-                    {{ commit.score === null ? '—' : commit.score + '%' }}
+                  <span class="score-pill">
+                    {{ commit.evidence_status || 'Not assessed' }}
                   </span>
                 </td>
 

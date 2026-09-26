@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
 import ignore from 'ignore';
 
-const generated = /(^|\/)(node_modules|vendor|dist|build|coverage|\.git|\.angular|__pycache__|migrations|generated)(\/|$)|(^|\/)(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|poetry\.lock|.*\.min\.[^/]+|.*\.map|.*\.generated\.[^/]+|.*\.g\.cs)$/i;
+const generated = /(^|\/)(node_modules|vendor|dist|build|coverage|\.git|\.angular|__pycache__|migrations|generated)(\/|$)|(^|\/)(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|poetry\.lock|Cargo\.lock|go\.sum|composer\.lock|Pipfile\.lock|Gemfile\.lock|bun\.lockb?|.*\.min\.[^/]+|.*\.map|.*\.generated\.[^/]+|.*\.g\.cs)$/i;
 export function excluded(path: string, source = '', gitignore = ''): boolean {
   if (!path || path.startsWith('/') || path.split('/').includes('..')) return true;
   return generated.test(path) || /(^|\/)(\.env($|\.)|.*\.(pem|key|p12|pfx)$)/i.test(path) || /@generated|auto[- ]generated|do not edit/i.test(source.slice(0,2000)) || ignore().add(gitignore).ignores(path);
