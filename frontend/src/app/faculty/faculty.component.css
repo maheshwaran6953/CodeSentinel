@@ -1,1 +1,11 @@
 .panel{padding:24px}h2{margin-top:0}small{display:block;margin-top:6px;color:#a1a1aa}.text-button{border:0;background:none;color:#60a5fa;text-align:left;cursor:pointer;font:inherit}pre{white-space:pre-wrap;overflow-wrap:anywhere;padding:16px;background:#09090b;font-size:12px;max-height:420px;overflow:auto}details{margin:16px 0}summary{cursor:pointer;color:#93c5fd}label{display:block;margin:16px 0}textarea,select{display:block;box-sizing:border-box;width:100%;margin:8px 0;padding:12px;color:#eee;background:#18181b;border:1px solid #52525b;border-radius:8px}article{border-top:1px solid #3f3f46;padding:20px 0}button:disabled{opacity:.5;cursor:wait}
+.panel { overflow-wrap: anywhere; line-height: 1.55; }
+.panel > :last-child { margin-bottom: 0; }
+.panel h3 { margin: 24px 0 12px; }
+.panel li + li { margin-top: 8px; }
+.panel form + .btn-primary { margin-top: 16px; }
+.panel .btn-primary { line-height: 1.5; }
+.dashboard-content > .btn-primary { align-self: flex-start; }
+.activity-table { min-width: 620px; }
+summary { padding-block: 4px; }
+@media (max-width: 640px) { .panel { padding: 16px; } }

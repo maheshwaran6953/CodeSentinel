@@ -316,3 +316,27 @@ Limits: continuity establishes structural relationships, not feature-semantic co
 Remaining release checks: publish and verify the revised Render/Vercel deployment, then exercise evidence displays, a real newly analyzed commit, immutable grading retry and faculty discussion/review in the live browser. Earlier deferred PR/redelivery and non-allowlisted faculty tests remain separately outstanding.
 
 FINAL PROJECT STATUS: NOT YET DEMO READY
+
+
+### Production rollout and real abstention check — 2026-09-26
+
+- Published source commit `b9727a4` to `codex/deploy-readiness`. The successful first Vercel build was not serving the production alias. Remote `main` was still `0871d9b`; verified it was an ancestor and advanced it by a normal non-force push to `b9727a4`, preserving all history.
+- Vercel production deployment `ELvYqvPo2ARoXueKNML9kfsj3ybz` reports success. The actual `codesentinel-ochre.vercel.app` JavaScript bundle contains the new evidence UI.
+- Render now recognizes the new protected faculty discussion endpoint and returns 401 to an unauthenticated request; before rollout it returned 404 like the missing-route control. No session was fabricated and no discussion was created by this check.
+- Added ten passing reporting regression tests in the existing dedicated integration repository, covering real filtering, serialization, bucket boundaries, copy isolation and CSV handling. Pushed actual commit `cbbf6373fcafc043a302394bb9216dbcd60b1c3a` (90 added lines). This repository remains an explicitly assistant-authored integration exercise, not student training/validation ground truth.
+- Read-only verified-TLS Supabase inspection confirms the new commit completed through the live pipeline: `longitudinal-v2`, `Insufficient evidence`, `abstained=true`, baseline `learning`, `flagged=false`, `quiz_status=not_required`, authenticity/risk columns null, model/calibration unavailable and authorshipProbability null. One source file was parsed; continuity identified `test_reporting.py` as a test addition and retained the real before/after/parent SHA plus push index 1 of 1. Signed webhook timestamp: 2026-09-26T15:52:06.463Z. No manual database edits forced these outcomes.
+- No local analysis worker was started; only isolated test workers ran against local PostgreSQL/Redis. The new hosted analysis therefore verifies Render, GitHub, Upstash, Python/tree-sitter and Supabase together under the new policy. Automatic XGBoost training is intentionally unavailable without a consented verified dataset.
+- The dedicated local validation PostgreSQL container was returned to its original stopped state after successful integration tests. Its volume and other containers were preserved.
+
+Remaining live acceptance: signed-in student/faculty browser verification of the new evidence display, faculty-requested discussion and review, and an immutable grading retry on the deployed UI. Current tooling cannot automate the signed-in in-app browser, so the user has been asked to refresh the student dashboard. The earlier PR/redelivery and deferred negative faculty-login tests remain outstanding. Scientific semantic validation/calibration remains future research, not a claimed deployment result.
+
+FINAL PROJECT STATUS: NOT YET DEMO READY
+
+
+Signed-in student confirmation: the user refreshed the production dashboard and confirmed it displays Evidence status instead of an authenticity percentage. Faculty browser acceptance is now in progress: the user was asked to open commit cbbf637 and request a neutral technical discussion with a documented integration-test reason. No automated session impersonation is used.
+
+### Faculty discussion and layout follow-up — 2026-09-26
+
+Read-only hosted verification after the faculty's request confirms three generated questions, stored raw generation audit, one faculty request review, and flagged=false for cbbf637. Student answers and the subsequent faculty review remain the core live acceptance steps; earlier secondary tests are not the reason for withholding demo acceptance.
+
+Corrected quiz content-box padding overflow, narrow-screen action-bar layout, modal sizing, dashboard flex/grid shrink behavior, and spacing between faculty review actions. Frontend production build passes (existing bundle-size warning remains); ChromeHeadless tests pass 24/24. These checks do not substitute for authenticated visual acceptance of the deployed pages.
