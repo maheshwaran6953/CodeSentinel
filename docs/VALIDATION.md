@@ -355,3 +355,29 @@ Rollout check: published 89e65df to the existing deployment branches. The produc
 Verified the current test discussion now has three of three graded responses and quiz status completed. One existing review is the original discussion-request note; no post-answer review snapshot exists yet. Fresh GitHub OAuth login succeeded in the browser. The deployed student workspace and correct GitHub commit targets are visible.
 
 Live browser validation reproduced an inbox refresh failure: the new /notifications endpoint was omitted from the frontend API interceptor's route allowlist, so requests reached Vercel rather than the credentialed backend. Added it to the existing interceptor and a regression contract test. Also fixed the history shortcut resolving against Angular's root base URL. Frontend tests pass 29/29. These are targeted integration fixes, not provider configuration changes.
+
+Post-fix production acceptance: commit 31c41ae is deployed. Fresh student OAuth login succeeds; the real inbox displays 50 updates, including all three graded answers and discussion completion. The history shortcut now targets /student/dashboard#commit-history. Student dashboard was inspected at the normal viewport and a temporary 390px viewport with no document-level horizontal overflow; viewport was restored. Student logout succeeded. Faculty Login is open awaiting the user's manual credential entry for modal/review verification. No password or session token was read.
+
+# Live External Validation — final core demonstration, 2026-09-27
+
+This section supersedes earlier chronological NOT YET DEMO READY entries for the core evidence-and-faculty-review demonstration.
+
+| Integration | Status | Evidence |
+| --- | --- | --- |
+| GitHub | VERIFIED LIVE | Fresh student OAuth login; installed test repository; real signed push, individual commit retrieval and persisted analysis. |
+| Supabase | VERIFIED LIVE | Verified-TLS persistence of completed analysis, three answers/grades and a post-answer faculty review snapshot. |
+| Groq | VERIFIED LIVE | Three commit-specific questions and three stored grades with provider audit and explanations. LLM judgments remain supporting evidence. |
+| Upstash | VERIFIED LIVE | Real webhook jobs processed by the deployed BullMQ worker; no local worker performed hosted analysis. |
+| Render | VERIFIED LIVE | Public backend readiness and deployed worker analysis including Python/tree-sitter; XGBoost infrastructure tested locally, production training deliberately unavailable without a consented verified dataset. |
+| Vercel | VERIFIED LIVE | Current frontend bundle, real student and faculty authenticated flows, corrected inbox API routing and commit navigation. |
+| Browser E2E | VERIFIED LIVE — core path | Student login, repository history, completed discussion, faculty answers/grades, modal evidence, post-answer review persistence and notification deep link. |
+
+Final faculty verification: the user signed in manually. The evidence popup displayed all three exact submitted answers, Groq rubric points and explanations. An explicitly integration-only Add context note was saved for cbbf637 in the dedicated assistant-authored test repository; no misconduct classification was made. The UI reported Faculty review saved with original analysis. Read-only database verification found quiz completed, three audited grades, one post-answer review snapshot containing all three questions, completed analysis, flagged=false, and null risk/authorship probability columns. Original records were not overwritten. Escape closed the popup. The inbox showed the new review, and clicking that notification reopened the corresponding commit popup.
+
+Latest regression results: backend 25 tests, frontend 29 tests, Python 8 tests pass; production builds pass. Frontend retains a non-fatal bundle-budget warning (about 543 kB against 500 kB). No quotas or billing changes were made. Groq cooldown/remaining-limit handling was tested without deliberately exhausting the live account.
+
+Deferred secondary checks: live GitHub pull-request delivery, webhook redelivery/deduplication, non-allowlisted faculty login and deployed immutable-answer retry. These are not represented as completed by this acceptance. Notifications are a bounded current activity inbox with browser-local read markers, not a durable all-transition/email/push system. Class roster import awaits actual user-supplied data and access requirements. Scientific precision/recall/calibration and true feature-semantic inference are not validated or claimed.
+
+FINAL PROJECT STATUS: DEMO READY
+
+Scope: the live longitudinal-evidence, technical-discussion and faculty-review demonstration. This is not a claim of scientifically validated authorship detection or production certification.
