@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
-import { HTTP_INTERCEPTORS } from '@angular/common/http';
+import { HTTP_INTERCEPTORS, HttpClient } from '@angular/common/http';
 import { AuthService } from './auth.service';
 import { RepositoryService } from './repository.service';
 import { QuizService } from './quiz.service';
@@ -19,6 +19,10 @@ describe('Authenticated API contracts',()=>{
     http=TestBed.inject(HttpTestingController);auth=TestBed.inject(AuthService);
   });
   afterEach(()=>http.verify());
+  it('routes the activity inbox to the backend with the session cookie',()=>{
+    TestBed.inject(HttpClient).get('/notifications').subscribe();
+    const request=http.expectOne('/api/notifications');expect(request.request.withCredentials).toBeTrue();request.flush([]);
+  });
   it('hydrates only the server session and sends credentials',()=>{
     expect(auth.isLoggedIn()).toBeFalse();
     auth.refresh().subscribe();const request=http.expectOne('/api/auth/me');

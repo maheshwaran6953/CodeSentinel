@@ -70,7 +70,7 @@
       <section class="workspace-summary" aria-labelledby="workspace-title">
         <div class="summary-heading"><span class="eyebrow">PROJECT WORKSPACE</span><h2 id="workspace-title">Your next steps</h2><p>Follow your work from repository activity to technical discussion.</p></div>
         <div class="workspace-rows">
-          <a class="workspace-row" href="#commit-history"><span><strong>Development history</strong><small>Explore the individual changes behind your project</small></span><span class="workspace-value">{{dashboardData.total_commits}} commits ↗</span></a>
+          <a class="workspace-row" href="/student/dashboard#commit-history" (click)="$event.preventDefault();showHistory()"><span><strong>Development history</strong><small>Explore the individual changes behind your project</small></span><span class="workspace-value">{{dashboardData.total_commits}} commits ↗</span></a>
           <div class="workspace-row"><span><strong>Style baseline</strong><small>Learning from authored code across meaningful development sessions</small></span><span class="workspace-value">{{dashboardData.baseline_status || 'learning'}}</span></div>
           <a class="workspace-row" routerLink="/student/quiz-interrogation"><span><strong>Technical discussions</strong><small>{{dashboardData.pending_quizzes ? 'Questions are ready for your explanation' : 'No discussions waiting for a response'}}</small></span><span class="workspace-value">{{dashboardData.pending_quizzes}} pending →</span></a>
           <div class="workspace-row"><span><strong>Faculty review</strong><small>Context and interpretation remain with your faculty</small></span><span class="workspace-value">{{dashboardData.flagged_commits}} surfaced events</span></div>

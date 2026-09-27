@@ -79,6 +79,10 @@ describe('StudentDashboardComponent', () => {
     expect(link.href).toBe('https://github.com/owner/project/commit/abc123');
     expect(link.rel).toContain('noopener');expect(link.getAttribute('aria-label')).toContain('new tab');
   });
+  it('keeps the development-history shortcut within the dashboard route',()=>{
+    const link:HTMLAnchorElement=fixture.nativeElement.querySelector('a.workspace-row');
+    expect(link.pathname).toBe('/student/dashboard');expect(link.hash).toBe('#commit-history');
+  });
 
   it('should load dashboard data on init', () => {
     expect(component.dashboardData).toEqual(mockData);

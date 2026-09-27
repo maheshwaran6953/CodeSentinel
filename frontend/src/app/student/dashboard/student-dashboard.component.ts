@@ -61,4 +61,5 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
     this.authService.logout();
     this.router.navigate(['/login']);
   }
+  showHistory(): void { document.getElementById('commit-history')?.scrollIntoView({behavior:'smooth',block:'start'}); }
 }
