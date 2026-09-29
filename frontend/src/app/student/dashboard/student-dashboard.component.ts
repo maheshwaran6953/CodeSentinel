@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Subject, timer } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { StudentService } from '../../services/student.service';
 import { AuthService, User } from '../../services/auth.service';
 import { StudentDashboardData } from '../../models/student.model';
@@ -20,11 +20,14 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
   isLoading: boolean = true;
   userInitials: string = 'ST';
   userNameShort: string = 'Student';
+  selectedCommit?:string;
+  private focusPending=false;
 
   constructor(
     private studentService: StudentService,
     private authService: AuthService,
-    private router: Router
+    private router: Router,
+    private route: ActivatedRoute
   ) {}
 
   ngOnInit(): void {
@@ -36,7 +39,7 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
         : 'ST';
     }
 
-    this.loadDashboardData();
+    this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe(params=>{this.selectedCommit=params.get('commit') || undefined;this.focusPending=!!this.selectedCommit;this.loadDashboardData();});
     timer(15000,15000).pipe(takeUntil(this.destroy$)).subscribe(()=>this.loadDashboardData());
   }
 
@@ -44,11 +47,12 @@ export class StudentDashboardComponent implements OnInit, OnDestroy {
 
   loadDashboardData(): void {
     this.isLoading = true;
-    this.studentService.getDashboardData().pipe(takeUntil(this.destroy$)).subscribe({
+    this.studentService.getDashboardData(this.selectedCommit).pipe(takeUntil(this.destroy$)).subscribe({
       next: (data) => {
         this.dashboardData = data;
         this.error = '';
         this.isLoading = false;
+        if(this.focusPending){this.focusPending=false;setTimeout(()=>document.getElementById('commit-'+this.selectedCommit)?.scrollIntoView({block:'center'}),0);}
       },
       error: (err) => {
         this.error = err.error?.message || 'Dashboard unavailable. Please retry or sign in again.';

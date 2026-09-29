@@ -42,6 +42,9 @@ describe('Authenticated API contracts',()=>{
     TestBed.inject(QuizService).getQuizSession().subscribe(session=>expect(session).toBeNull());
     http.expectOne('/api/quizzes/active').flush(null);
   });
+  it('loads a specific discussion rather than silently substituting the next active quiz',()=>{
+    TestBed.inject(QuizService).getQuizSession('quiz-id').subscribe(session=>expect(session).toBeNull());http.expectOne('/api/quizzes/active?quiz=quiz-id').flush(null);
+  });
   it('sends only repository identity when linking',()=>{
     TestBed.inject(RepositoryService).registerWebhook({id:'42'} as any).subscribe();
     const request=http.expectOne('/api/repositories/link');expect(request.request.body).toEqual({repositoryId:'42'});

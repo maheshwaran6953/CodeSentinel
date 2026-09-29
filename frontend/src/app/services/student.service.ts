@@ -7,6 +7,6 @@ import { Repository } from '../models/repository.model';
 export class StudentService {
   readonly repositoryChanged$ = new Subject<Repository>();
   constructor(private http: HttpClient) {}
-  getDashboardData(): Observable<StudentDashboardData> { return this.http.get<StudentDashboardData>('/student/dashboard'); }
+  getDashboardData(commitId?:string): Observable<StudentDashboardData> { return this.http.get<StudentDashboardData>('/student/dashboard'+(commitId?'?commit='+encodeURIComponent(commitId):'')); }
   updateLinkedRepository(repo: Repository): void { this.repositoryChanged$.next(repo); }
 }

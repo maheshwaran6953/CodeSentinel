@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { QuizService } from '../../services/quiz.service';
@@ -12,6 +12,8 @@ import { QuizSession, Question, LLMGradingResult, UserAnswer } from '../../model
   standalone: false
 })
 export class QuizInterrogationComponent implements OnInit, OnDestroy {
+  private requestedQuiz?:string;
+  private requestedQuestion?:string;
   // Quiz State
   quizSession: QuizSession | null = null;
   currentQuestionIndex: number = 0;
@@ -37,14 +39,16 @@ export class QuizInterrogationComponent implements OnInit, OnDestroy {
   // Auto-advance Timer
   private autoAdvanceTimer: any = null;
   private destroy$ = new Subject<void>();
+  private sessionChanged$ = new Subject<void>();
 
   constructor(
     private quizService: QuizService,
-    private router: Router
+    private router: Router,
+    private route: ActivatedRoute
   ) {}
 
   ngOnInit(): void {
-    this.loadQuizSession();
+    this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe(params=>{this.requestedQuiz=params.get('quiz') || undefined;this.requestedQuestion=params.get('question') || undefined;this.loadQuizSession();});
   }
 
   ngOnDestroy(): void {
@@ -99,14 +103,19 @@ export class QuizInterrogationComponent implements OnInit, OnDestroy {
    * Load quiz interrogation session
    */
   loadQuizSession(): void {
+    this.sessionChanged$.next();
+    this.quizSession=null;this.isGrading=false;this.isSavingDraft=false;this.showDraftToast=false;
+    this.isCompleted=false;this.error='';this.answerText='';this.showFeedback=false;this.currentResult=null;
     this.isLoading = true;
-    this.quizService.getQuizSession()
-      .pipe(takeUntil(this.destroy$))
+    this.quizService.getQuizSession(this.requestedQuiz)
+      .pipe(takeUntil(this.destroy$), takeUntil(this.sessionChanged$))
       .subscribe({
         next: (session) => {
           this.submissionUncertain = false;
           this.quizSession = session;
           this.currentQuestionIndex = session?.currentQuestionIndex || 0;
+          const target=session?.questions.findIndex(q=>q.id===this.requestedQuestion) ?? -1;
+          if(target>=0)this.currentQuestionIndex=target;
           this.loadExistingAnswer();
           this.isLoading = false;
         },
@@ -152,7 +161,7 @@ export class QuizInterrogationComponent implements OnInit, OnDestroy {
     const qId = this.currentQuestion.id;
 
     this.quizService.submitAnswer(qId, this.answerText)
-      .pipe(takeUntil(this.destroy$))
+      .pipe(takeUntil(this.destroy$), takeUntil(this.sessionChanged$))
       .subscribe({
         next: (result) => {
           this.isGrading = false;
@@ -168,7 +177,7 @@ export class QuizInterrogationComponent implements OnInit, OnDestroy {
           this.error = err.error?.message || 'Submission status uncertain. Reload before retrying.';
           this.submissionUncertain = true;
           // Reconcile with the server before enabling edits/retry: a timeout may follow a saved submission.
-          this.quizService.getQuizSession().pipe(takeUntil(this.destroy$)).subscribe({
+          this.quizService.getQuizSession(this.quizSession?.id || this.requestedQuiz).pipe(takeUntil(this.destroy$), takeUntil(this.sessionChanged$)).subscribe({
             next: session => {
               if (session) { this.quizSession=session; this.submissionUncertain=false; this.loadExistingAnswer(); }
               else { this.loadQuizSession(); }
@@ -186,7 +195,7 @@ export class QuizInterrogationComponent implements OnInit, OnDestroy {
 
     this.isSavingDraft = true;
     this.quizService.saveDraft(this.currentQuestion.id, this.answerText)
-      .pipe(takeUntil(this.destroy$))
+      .pipe(takeUntil(this.destroy$), takeUntil(this.sessionChanged$))
       .subscribe({
         next: () => {
           this.isSavingDraft = false;

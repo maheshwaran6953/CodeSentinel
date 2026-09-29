@@ -5,7 +5,7 @@ import { QuizSession, LLMGradingResult } from '../models/quiz.model';
 @Injectable({providedIn:'root'})
 export class QuizService {
   constructor(private http: HttpClient) {}
-  getQuizSession(): Observable<QuizSession | null> { return this.http.get<QuizSession | null>('/quizzes/active'); }
+  getQuizSession(quizId?:string): Observable<QuizSession | null> { return this.http.get<QuizSession | null>('/quizzes/active'+(quizId?'?quiz='+encodeURIComponent(quizId):'')); }
   submitAnswer(questionId: string, answerText: string): Observable<LLMGradingResult> {
     return this.http.post<LLMGradingResult>(`/quizzes/questions/${questionId}/answer`,{answerText});
   }

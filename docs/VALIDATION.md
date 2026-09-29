@@ -381,3 +381,13 @@ Deferred secondary checks: live GitHub pull-request delivery, webhook redelivery
 FINAL PROJECT STATUS: DEMO READY
 
 Scope: the live longitudinal-evidence, technical-discussion and faculty-review demonstration. This is not a claim of scientifically validated authorship detection or production certification.
+
+## Durable notifications — 2026-09-29
+
+Implemented PostgreSQL workflow events and per-recipient read state, atomic event triggers, unread/all cursor pagination, exact commit/discussion/question links, and hourly BullMQ reminders (48-hour initial wait, 24-hour minimum interval). No historical backfill or fabricated runtime events. Existing all-students faculty authorization is preserved; class roster work remains deferred.
+
+Local validation: backend build and 28 tests pass; Python 8 tests pass; frontend 35 ChromeHeadless tests and production build pass. Tests cover transaction rollback, duplicate state updates, recipient isolation, cross-instance read persistence, pagination, read-all boundaries, reminder suppression after completion/review, completed-discussion ownership, stale navigation responses, and failed read acknowledgements. A shared mutable frontend test fixture was isolated; no runtime provider fixtures were introduced. The existing frontend bundle warning remains (546.61 kB against 500 kB).
+
+Hosted database: existing migration runner applied 002_durable_notifications.sql successfully. Verified its tracking entry, both notification tables with RLS enabled and five workflow triggers. A second runner invocation completed without applying anything. No existing application records were changed or backfilled by the migration.
+
+Release status: source is locally verified and hosted schema is ready. Deployment, deployed reminder registration and authenticated durable-inbox acceptance remain pending; the earlier core-demo acceptance does not establish these new checks.

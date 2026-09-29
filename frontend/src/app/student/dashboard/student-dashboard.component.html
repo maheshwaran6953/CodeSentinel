@@ -95,7 +95,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let commit of dashboardData.recent_commits" class="table-row">
+              <tr *ngFor="let commit of dashboardData.recent_commits" class="table-row" [id]="'commit-'+commit.id" [class.selected-commit]="commit.id && commit.id===selectedCommit">
                 <!-- Message & SHA -->
                 <td class="td-left">
                   <a *ngIf="commit.url; else unlinkedCommit" class="commit-message" [href]="commit.url" target="_blank" rel="noopener noreferrer" [attr.aria-label]="commit.message + ' — open commit on GitHub in a new tab'">{{ commit.message }} ↗</a><ng-template #unlinkedCommit><span class="commit-message">{{commit.message}}</span></ng-template>

@@ -1,8 +1,8 @@
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { Router, ActivatedRoute, convertToParamMap } from '@angular/router';
+import { of, throwError, Subject } from 'rxjs';
 import { QuizInterrogationComponent } from './quiz-interrogation.component';
 import { QuizService } from '../../services/quiz.service';
 import { QuizSession, LLMGradingResult } from '../../models/quiz.model';
@@ -66,6 +66,7 @@ describe('QuizInterrogationComponent', () => {
       providers: [
         { provide: QuizService, useValue: mockQuizService },
         { provide: Router, useValue: mockRouter }
+        ,{provide:ActivatedRoute,useValue:{queryParamMap:of(convertToParamMap({}))}}
       ]
     }).compileComponents();
 
@@ -154,6 +155,16 @@ describe('QuizInterrogationComponent', () => {
     component.submitAnswer();
     expect(component.submissionUncertain).toBeTrue();expect(component.answerLocked).toBeTrue();
     component.submitAnswer();expect(mockQuizService.submitAnswer).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores an old discussion response after opening another notification', () => {
+    const old = new Subject<QuizSession>();
+    const current = structuredClone(mockSession);current.id='new-discussion';
+    mockQuizService.getQuizSession.and.returnValues(old,of(current));
+    component.loadQuizSession();component.loadQuizSession();
+    old.next(structuredClone(mockSession));
+    expect(component.quizSession?.id).toBe('new-discussion');
+    expect(component.isLoading).toBeFalse();
   });
 
 });

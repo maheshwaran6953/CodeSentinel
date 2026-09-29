@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Param, ParseUUIDPipe, Req, NotFoundException, ConflictException } from '@nestjs/common';
+import { Body, Controller, Get, Post, Param, ParseUUIDPipe, Query, Req, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { IsString, MaxLength } from 'class-validator';
 import { Database } from './database';
 import { AuthRequest, Roles } from './security';
@@ -14,15 +14,16 @@ class AnswerDto { @IsString() @MaxLength(1000) answerText!: string; }
 @Controller('quizzes') @Roles('student')
 export class QuizController {
   constructor(private db: Database, private llm: Llm) {}
-  @Get('active') async active(@Req() req: AuthRequest) {
+  @Get('active') async active(@Req() req: AuthRequest,@Query('quiz') quizId?:string) {
+    if(quizId && !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(quizId))throw new BadRequestException('Invalid discussion ID');
     const [quiz] = await this.db.query(`SELECT q.*,c.sha,c.message,c.committed_at,r.full_name FROM quizzes q JOIN commits c ON c.id=q.commit_id
-      JOIN repositories r ON r.id=c.repository_id WHERE q.student_id=$1 AND q.status<>'completed' ORDER BY q.created_at LIMIT 1`,[req.user.id]);
-    if (!quiz) return null;
+      JOIN repositories r ON r.id=c.repository_id WHERE q.student_id=$1 AND (($2::uuid IS NULL AND q.status<>'completed') OR q.id=$2::uuid) ORDER BY q.created_at LIMIT 1`,[req.user.id,quizId || null]);
+    if (!quiz) {if(quizId)throw new NotFoundException('Discussion not found');return null;}
     const questions = await this.db.query('SELECT id,question_text,code_snippet FROM questions WHERE quiz_id=$1 ORDER BY ordinal',[quiz.id]);
     const answers = await this.db.query(`SELECT r.* FROM responses r JOIN questions q ON q.id=r.question_id WHERE q.quiz_id=$1 AND r.student_id=$2`,[quiz.id,req.user.id]);
     const answerMap = Object.fromEntries(answers.map(a => [a.question_id,{ questionId:a.question_id,answerText:a.answer_text,result:publicGrade(a.result),submittedAt:a.submitted_at,isDraft:a.is_draft,gradingStatus:a.grading_status,gradingError:a.grading_error }]));
     return { id:quiz.id,title:'Integrity Quiz Interrogation',totalQuestions:questions.length,
-      currentQuestionIndex: Math.max(0,questions.findIndex(q=>!answerMap[q.id]?.result)),status:'in_progress',answers:answerMap,
+      currentQuestionIndex: Math.max(0,questions.findIndex(q=>!answerMap[q.id]?.result)),status:quiz.status==='completed'?'completed':'in_progress',answers:answerMap,
       questions:questions.map(q=>({id:q.id,questionText:q.question_text,codeSnippet:q.code_snippet,commitSha:quiz.sha,
         commitMessage:quiz.message,commitRepo:quiz.full_name,commitTimeAgo:quiz.committed_at,minCharCount:20,maxCharCount:1000})) };
   }

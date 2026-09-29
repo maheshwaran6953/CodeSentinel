@@ -7,6 +7,9 @@ export function required(name: string): string {
 }
 export const production = process.env.NODE_ENV === 'production';
 export function validateConfig(): void {
+  for(const name of ['NOTIFICATION_REMINDER_DELAY_HOURS','NOTIFICATION_REMINDER_INTERVAL_HOURS']) {
+    if(process.env[name]!==undefined && (!/^\d+$/.test(process.env[name]!) || Number(process.env[name])<1 || Number(process.env[name])>8760))throw new Error(`${name} must be an integer between 1 and 8760`);
+  }
   for (const name of ['DATABASE_URL', 'REDIS_URL', 'JWT_SECRET', 'TOKEN_ENCRYPTION_KEY', 'FRONTEND_URL',
     'GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET', 'GITHUB_APP_ID', 'GITHUB_PRIVATE_KEY',
     'GITHUB_APP_SLUG', 'GITHUB_CALLBACK_URL', 'GITHUB_WEBHOOK_SECRET']) required(name);

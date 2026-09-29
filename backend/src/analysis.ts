@@ -7,15 +7,23 @@ import { Stylometry, excluded, supported } from './stylometry';
 import { combine, velocity, Metrics } from './scoring';
 import { Llm } from './llm';
 import { ancestorHistory, evidenceSummary } from './evidence';
+import { sendReminders } from './notifications';
 
 @Injectable()
 export class Analysis implements OnModuleInit, OnModuleDestroy {
   private worker?: Worker;
   constructor(private db: Database, private github: GitHub, private queue: AnalysisQueue,
     private ast: Stylometry, private llm: Llm) {}
-  onModuleInit() { if (process.env.RUN_WORKER !== 'false') this.worker = createWorker(job => this.process(job)); }
+  async onModuleInit() { if (process.env.RUN_WORKER !== 'false') {
+    this.worker = createWorker(job => this.process(job));
+    await this.queue.queue.add('notification-reminders',{}, {jobId:'notification-reminders-v1',repeat:{every:3600000}});
+  } }
   async onModuleDestroy() { await this.worker?.close(); }
   async process(job: Job) {
+    if(job.name==='notification-reminders') {
+      if(process.env.NOTIFICATION_REMINDERS_ENABLED==='false')return;
+      return sendReminders(this.db,Number(process.env.NOTIFICATION_REMINDER_DELAY_HOURS || 48),Number(process.env.NOTIFICATION_REMINDER_INTERVAL_HOURS || 24));
+    }
     const [repo] = await this.db.query('SELECT r.*,u.github_id AS student_github_id FROM repositories r JOIN users u ON u.id=r.student_id WHERE r.id=$1 AND r.active=true', [job.data.repositoryId]);
     if (!repo) return;
     if (job.name === 'quiz') return this.generateQuiz(job.data.commitId);

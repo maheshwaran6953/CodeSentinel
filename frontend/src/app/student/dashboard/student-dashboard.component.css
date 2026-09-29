@@ -5,6 +5,7 @@
   color: #e0e0e0;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
+.selected-commit { background:rgba(59,130,246,.12); outline:2px solid #60a5fa; outline-offset:-2px; }
 
 .dashboard-wrapper {
   display: flex;

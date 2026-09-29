@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Param, ParseUUIDPipe, Req, NotFoundException, ConflictException } from '@nestjs/common';
+import { Body, Controller, Get, Post, Param, ParseUUIDPipe, Query, Req, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { IsIn, IsString, MinLength, MaxLength } from 'class-validator';
 import { Database } from './database';
 import { AuthRequest, Roles } from './security';
@@ -13,19 +13,24 @@ class OverrideDto {
 @Controller('student') @Roles('student')
 export class StudentController {
   constructor(private db: Database) {}
-  @Get('dashboard') async dashboard(@Req() req: AuthRequest) {
+  @Get('dashboard') async dashboard(@Req() req: AuthRequest,@Query('commit') commitId?:string) {
+    if(commitId && !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(commitId))throw new BadRequestException('Invalid commit ID');
     const repos = await this.db.query('SELECT * FROM repositories WHERE student_id=$1 ORDER BY linked_at DESC',[req.user.id]);
     const commits = await this.db.query('SELECT c.*,r.full_name FROM commits c JOIN repositories r ON r.id=c.repository_id WHERE c.student_id=$1 ORDER BY c.committed_at DESC NULLS LAST LIMIT 50',[req.user.id]);
     const [stats] = await this.db.query(`SELECT count(*)::int AS total,
       count(*) FILTER(WHERE flagged)::int AS flagged FROM commits WHERE student_id=$1`,[req.user.id]);
     const [pending] = await this.db.query("SELECT count(*)::int AS count FROM quizzes WHERE student_id=$1 AND status<>'completed'",[req.user.id]);
     const assessment = commits.length ? publicEvidence(commits[0]) : {status:'Insufficient evidence',baseline:{status:'learning'}};
+    if(commitId && !commits.some(c=>c.id===commitId)) {
+      const [target]=await this.db.query('SELECT c.*,r.full_name FROM commits c JOIN repositories r ON r.id=c.repository_id WHERE c.id=$1 AND c.student_id=$2',[commitId,req.user.id]);
+      if(!target)throw new NotFoundException('Commit not found');commits.push(target);
+    }
     return { authenticity_score:null,avg_score:null,authenticity_level:'Learning',evidence_status:assessment.status,baseline_status:assessment.baseline.status,
       total_commits:stats.total,pending_quizzes:pending.count,flagged_commits:stats.flagged,
       repository:repos.length ? {name:repos[0].full_name,url:repos[0].url,linked_at:repos[0].linked_at,is_linked:repos[0].active,
         webhook_received_at:repos[0].last_webhook_at} : {name:'No repository linked',url:'',linked_at:'',is_linked:false},
       repositories:repos.map(r=>({name:r.full_name,is_linked:r.active,webhook_received_at:r.last_webhook_at})),
-      recent_commits:commits.map(c=>({url:`https://github.com/${c.full_name}/commit/${c.sha}`,sha:c.sha,message:c.message || 'Awaiting analysis',date:c.committed_at,
+      recent_commits:commits.map(c=>({id:c.id,url:`https://github.com/${c.full_name}/commit/${c.sha}`,sha:c.sha,message:c.message || 'Awaiting analysis',date:c.committed_at,
         lines_added:c.additions || 0,lines_deleted:c.deletions || 0,score:null,evidence_status:publicEvidence(c).status,
         status:c.status==='completed' ? c.flagged?(c.signals?.evidence?.version==='longitudinal-v2'?'review_requested':'legacy_review'):'normal':c.status,baseline:publicEvidence(c).baseline.status})) };
   }
