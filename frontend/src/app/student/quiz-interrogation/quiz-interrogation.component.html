@@ -90,6 +90,7 @@
       </div>
 
       <p *ngIf="answerLocked">This is the exact submitted response. It cannot be edited. Retrying grades this saved response only.</p>
+      <p *ngIf="queuedAnswer as queued" role="status">{{queued.gradingError || 'Your saved answer is being graded.'}} <span *ngIf="queued.gradingRetryAt">Next attempt no earlier than {{queued.gradingRetryAt | date:'medium'}}.</span> You can leave this page; processing continues in the worker.</p>
       <div class="textarea-wrapper">
         <textarea
           id="answerText"
@@ -205,9 +206,9 @@
         *ngIf="!showFeedback"
         (click)="submitAnswer()" 
         class="btn-primary flex-2" 
-        [disabled]="!isValidAnswer || isGrading || submissionUncertain"
+        [disabled]="!isValidAnswer || isGrading || submissionUncertain || !!queuedAnswer"
       >
-        {{ isGrading ? 'Grading...' : answerLocked ? 'Retry grading saved answer' : 'Submit Answer' }}
+        {{ queuedAnswer ? 'Saved — waiting for grading' : isGrading ? 'Grading...' : answerLocked ? 'Retry grading saved answer' : 'Submit Answer' }}
       </button>
 
       <button 

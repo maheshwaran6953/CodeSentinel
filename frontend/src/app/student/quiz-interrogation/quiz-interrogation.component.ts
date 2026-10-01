@@ -1,6 +1,6 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Router, ActivatedRoute } from '@angular/router';
-import { Subject } from 'rxjs';
+import { Subject, timer } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { QuizService } from '../../services/quiz.service';
 import { QuizSession, Question, LLMGradingResult, UserAnswer } from '../../models/quiz.model';
@@ -47,7 +47,12 @@ export class QuizInterrogationComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute
   ) {}
 
+  get queuedAnswer() {const a=this.currentQuestion && this.quizSession?.answers[this.currentQuestion.id];return a && !a.isDraft && !a.result && ['pending','grading'].includes(a.gradingStatus || '')?a:null;}
   ngOnInit(): void {
+    timer(15000,15000).pipe(takeUntil(this.destroy$)).subscribe(()=>{
+      if(!this.queuedAnswer || this.isGrading || this.isLoading || !this.quizSession)return;
+      this.quizService.getQuizSession(this.quizSession.id).pipe(takeUntil(this.destroy$),takeUntil(this.sessionChanged$)).subscribe({next:session=>{if(session){this.quizSession=session;this.loadExistingAnswer();if(!this.queuedAnswer)this.error='';}},error:()=>{this.error='Unable to refresh grading status. Your saved answer is retained.';}});
+    });
     this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe(params=>{this.requestedQuiz=params.get('quiz') || undefined;this.requestedQuestion=params.get('question') || undefined;this.loadQuizSession();});
   }
 
@@ -134,6 +139,7 @@ export class QuizInterrogationComponent implements OnInit, OnDestroy {
     
     const existing = this.quizSession.answers[this.currentQuestion.id];
     if (existing) {
+      if(this.queuedAnswer)this.error='';
       this.answerText = existing.answerText || '';
       if (existing.result) {
         this.currentResult = existing.result;
@@ -153,7 +159,7 @@ export class QuizInterrogationComponent implements OnInit, OnDestroy {
    * Submit Answer for LLM Grading
    */
   submitAnswer(): void {
-    if (!this.isValidAnswer || !this.currentQuestion || this.isGrading || this.submissionUncertain) return;
+    if (!this.isValidAnswer || !this.currentQuestion || this.isGrading || this.submissionUncertain || this.queuedAnswer) return;
 
     this.isGrading = true;
     this.error = '';

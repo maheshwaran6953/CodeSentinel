@@ -20,6 +20,7 @@ export interface LLMGradingResult {
 export interface UserAnswer {
   gradingStatus?: 'pending' | 'grading' | 'failed' | 'graded';
   gradingError?: string;
+  gradingRetryAt?: string;
   questionId: string;
   answerText: string;
   result?: LLMGradingResult;

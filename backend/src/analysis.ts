@@ -5,6 +5,7 @@ import { GitHub } from './github';
 import { AnalysisQueue, createWorker } from './queue';
 import { Stylometry, excluded, supported } from './stylometry';
 import { combine, velocity, Metrics } from './scoring';
+import { QuizController } from './quiz';
 import { Llm } from './llm';
 import { ancestorHistory, evidenceSummary } from './evidence';
 import { sendReminders } from './notifications';
@@ -16,10 +17,12 @@ export class Analysis implements OnModuleInit, OnModuleDestroy {
     private ast: Stylometry, private llm: Llm) {}
   async onModuleInit() { if (process.env.RUN_WORKER !== 'false') {
     this.worker = createWorker(job => this.process(job));
+    await this.queue.queue.add('llm-recovery',{}, {jobId:'llm-recovery-v1',repeat:{every:60000}});
     await this.queue.queue.add('notification-reminders',{}, {jobId:'notification-reminders-v1',repeat:{every:3600000}});
   } }
   async onModuleDestroy() { await this.worker?.close(); }
   async process(job: Job) {
+    if(job.name==='llm-recovery')return this.recoverLlm();
     if(job.name==='notification-reminders') {
       if(process.env.NOTIFICATION_REMINDERS_ENABLED==='false')return;
       return sendReminders(this.db,Number(process.env.NOTIFICATION_REMINDER_DELAY_HOURS || 48),Number(process.env.NOTIFICATION_REMINDER_INTERVAL_HOURS || 24));
@@ -153,10 +156,23 @@ export class Analysis implements OnModuleInit, OnModuleDestroy {
       throw new Error('Commit analysis failed');
     }
   }
+  async recoverLlm() {
+    await this.db.query("UPDATE responses SET grading_status='failed',grading_retry_at=null,grading_error='Automatic grading stopped after five attempts. Your answer is saved; retry manually.' WHERE result IS NULL AND grading_attempts>=5 AND grading_status IN ('pending','grading') AND updated_at<now()-interval '2 minutes'");
+    const responses=await this.db.query("SELECT question_id,student_id,answer_text FROM responses WHERE result IS NULL AND is_draft=false AND ((grading_status='pending' AND grading_retry_at<=now()) OR (grading_status='grading' AND updated_at<now()-interval '2 minutes')) ORDER BY updated_at LIMIT 10");
+    for(const r of responses) {
+      try {await new QuizController(this.db,this.llm).answer(r.question_id,{user:{id:r.student_id}} as any,{answerText:r.answer_text});}
+      catch { /* Saved status and retry timing are authoritative; continue other work. */ }
+    }
+    const commits=await this.db.query("SELECT id FROM commits WHERE quiz_status='pending' AND quiz_retry_at<=now() ORDER BY quiz_retry_at LIMIT 10");
+    for(const c of commits) {try {await this.generateQuiz(c.id);}catch { /* Persisted retry state remains visible. */ }}
+  }
   async generateQuiz(commitId: string) {
     const [commit] = await this.db.query('SELECT * FROM commits WHERE id=$1',[commitId]);
     if (!commit || (!commit.flagged && !commit.signals?.discussionRequested) || !commit.diff) return;
     if ((await this.db.query('SELECT id FROM quizzes WHERE commit_id=$1',[commitId])).length) return;
+    if(commit.quiz_attempts>=5) {await this.db.query("UPDATE commits SET quiz_status='failed',quiz_retry_at=null WHERE id=$1",[commit.id]);return;}
+    if(commit.quiz_retry_at && new Date(commit.quiz_retry_at).getTime()>Date.now())return;
+    await this.db.query("UPDATE commits SET quiz_attempts=quiz_attempts+1,quiz_retry_at=now()+interval '2 minutes' WHERE id=$1",[commit.id]);
     try {
       const questions = await this.llm.questions(commit);
       await this.db.source.transaction(async tx => {
@@ -164,11 +180,12 @@ export class Analysis implements OnModuleInit, OnModuleDestroy {
           ON CONFLICT(commit_id) DO NOTHING RETURNING id`,[commit.id,commit.student_id,JSON.stringify(commit.reasons),this.llm.model]);
         if (quiz) await tx.query(`UPDATE commits SET signals=jsonb_set(coalesce(signals,'{}'::jsonb),'{questionGeneration}', $2::jsonb) WHERE id=$1`,[commit.id,JSON.stringify(questions[0]?.providerResponse || {status:'provider_audit_unavailable'})]);
         if (quiz) for (const [i,q] of questions.entries()) await tx.query('INSERT INTO questions(quiz_id,ordinal,question_text,rubric,code_snippet) VALUES ($1,$2,$3,$4,$5)',[quiz.id,i,q.questionText,q.rubric,commit.diff.slice(0,6000)]);
-        await tx.query("UPDATE commits SET quiz_status='generated' WHERE id=$1",[commit.id]);
+        await tx.query("UPDATE commits SET quiz_status='generated',quiz_retry_at=null WHERE id=$1",[commit.id]);
       });
-    } catch {
-      await this.db.query("UPDATE commits SET quiz_status='failed' WHERE id=$1",[commit.id]);
-      throw new Error('Quiz generation failed; retry from faculty dashboard');
+    } catch (error) {
+      const retry=(error as any)?.retryable && ((error as any)?.capacityDeferred || commit.quiz_attempts<4);
+      await this.db.query("UPDATE commits SET quiz_status=$2,quiz_retry_at=$3,quiz_attempts=greatest(0,quiz_attempts-$4) WHERE id=$1",[commit.id,retry?'pending':'failed',retry?new Date(Math.max(Date.now()+30000,(error as any).retryAt || 0)):null,(error as any)?.capacityDeferred?1:0]);
+      if(!retry)throw new Error('Quiz generation failed; retry from faculty dashboard');
     }
   }
 }

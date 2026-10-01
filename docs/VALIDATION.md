@@ -399,3 +399,13 @@ A stale browser tab was unresponsive to automation; a fresh tab completed login.
 Final student acceptance: after fresh authentication, the read marker remained saved. Mark all read completed through the refresh boundary and the live inbox displayed Updates 0 with both events retained. No faculty read state was changed by that action.
 
 Exact completed-discussion acceptance: the authorized quiz/question URL opened question 2 of 3, displayed the immutable saved response in a disabled textbox, and retained its grading rationale without a new Groq request. Durable notification release: VERIFIED LIVE for persisted events, recipient reads, commit popup, completed-question routing and deployed reminder execution.
+
+## Shared Groq capacity and recovery — 2026-10-01
+
+Implemented additive migration 003_groq_capacity.sql, database-backed quota observations/cooldowns, serialized provider leases and cached validated results keyed by model/entity/input. The existing BullMQ worker recovers due saved grading/question work each minute. Student waiting state retains immutable answers; faculty sees observed quota/model/reset data and retry timing. Provider/network failures have a five-attempt automatic bound; capacity deferrals do not spend that attempt budget. No provider plan, credentials or billing settings changed.
+
+Local validation: 33 backend tests, 36 frontend ChromeHeadless tests and 8 Python tests pass. Shared state, restart/cache behavior, concurrent request exclusion, cooldowns, malformed output and saved-answer worker recovery are covered with isolated test transports/databases. The focused Groq suite also passed after the final header-preservation adjustment.
+
+Hosted migration applied successfully via the existing runner and reran as a no-op; both new tables have RLS enabled. One real question-generation request on the dedicated test commit returned three valid questions. One real structured grading request used its existing submitted test answer. New service instances reused each persisted provider result without increasing observed request count; provider request identity was retained for the grade. Original response/grade records were not updated by these checks. Provider-limit exhaustion was not induced; 429, transient failure and restart behavior are verified in automated tests.
+
+Rollout pending at this entry: publish backend/frontend, confirm deployed recovery registration and inspect the faculty capacity display. This entry does not claim that the pending rollout is live.

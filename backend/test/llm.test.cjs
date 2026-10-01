@@ -1,6 +1,9 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const axios=require('axios');
+const {PGlite}=require('@electric-sql/pglite');
+const {readFileSync}=require('node:fs');
+const {GroqCapacity,resetMilliseconds}=require('../dist/groq-capacity');
 const {Llm}=require('../dist/llm');
 
 // Transport fixtures are confined to tests; the runtime still calls Groq.
@@ -9,8 +12,12 @@ async function transport(post, run) {
   const key=process.env.GROQ_API_KEY;
   process.env.GROQ_API_KEY='test-only-provider-key';
   axios.post=post;
-  try {await run(new Llm());}
-  finally {axios.post=original;if(key===undefined)delete process.env.GROQ_API_KEY;else process.env.GROQ_API_KEY=key;}
+  const pg=new PGlite();
+  await pg.exec(readFileSync('migrations/003_groq_capacity.sql','utf8').split('ALTER TABLE responses')[0]);
+  const adapter=x=>({query:async(sql,args=[]) => (await x.query(sql,args)).rows});
+  const db={...adapter(pg),source:{transaction:fn=>pg.transaction(tx=>fn(adapter(tx)))}};
+  try {await run(new Llm(new GroqCapacity(db)),db);}
+  finally {await pg.close();axios.post=original;if(key===undefined)delete process.env.GROQ_API_KEY;else process.env.GROQ_API_KEY=key;}
 }
 const response=value=>({data:{choices:[{message:{content:JSON.stringify(value)}}]}});
 const question={questionText:'Why does the task validator reject negative durations?',rubric:'Explain the duration invariant and why invalid input raises an exception.'};
@@ -18,12 +25,12 @@ const question={questionText:'Why does the task validator reject negative durati
 test('Groq honors provider cooldown without repeated requests and reports only safe limit metadata',async()=>{
   let calls=0;
   await transport(async()=>{calls++;throw {response:{status:429,headers:{'retry-after':'120','x-ratelimit-remaining-requests':'42','authorization':'secret-must-not-escape'}}};},async llm=>{
-    await assert.rejects(llm.questions({diff:'code'}),/quota temporarily reached/);
-    await assert.rejects(llm.questions({diff:'code'}),/cooldown/);
+    await assert.rejects(llm.questions({diff:'code'}),/Waiting for API capacity/);
+    await assert.rejects(llm.questions({diff:'code'}),/Waiting for API capacity/);
     assert.equal(calls,1);
-    assert.equal(llm.quotaStatus.dailyRequestsRemaining,42);
-    assert.ok(Date.parse(llm.quotaStatus.retryAt)>Date.now());
-    assert.ok(!JSON.stringify(llm.quotaStatus).includes('secret-must-not-escape'));
+    assert.equal((await llm.quotaStatus).dailyRequestsRemaining,42);
+    assert.ok(Date.parse((await llm.quotaStatus).retryAt)>Date.now());
+    assert.ok(!JSON.stringify(await llm.quotaStatus).includes('secret-must-not-escape'));
   });
 });
 
@@ -42,7 +49,7 @@ test('Groq quota and network failures return safe retriable errors without provi
   for(const status of [429,500,503,undefined]) {
     await transport(async()=>{throw {response:{status,data:{error:{message:'test-only-provider-key'}}}};},async llm=>{
       await assert.rejects(llm.questions({diff:'code'}),e=>e.getStatus()===503 &&
-        e.message.includes('retried')&&!e.message.includes('test-only-provider-key'));
+        /retry|queued/.test(e.message)&&!e.message.includes('test-only-provider-key'));
     });
   }
 });
@@ -85,4 +92,33 @@ test('GPT-OSS grading requires every rubric field including confidence via stric
         explanation:'The response explains the code and limitations.',confidence:0.75});
     },async llm=>assert.equal((await llm.grade({},'Test technical explanation')).score,80));
   } finally {if(previous===undefined)delete process.env.GROQ_MODEL;else process.env.GROQ_MODEL=previous;}
+});
+
+test('Groq reset headers parse durations without inventing missing limits',()=>{
+ assert.equal(resetMilliseconds('2m59.56s'),179560);assert.equal(resetMilliseconds('7.66s'),7660);assert.equal(resetMilliseconds('bad'),null);assert.equal(resetMilliseconds(undefined),null);
+});
+test('shared capacity survives new instances and caches validated results without another provider call',async()=>{
+ let calls=0;
+ await transport(async()=>{calls++;return response({questions:[question,question]});},async(llm,db)=>{
+  const input={id:'real-test-entity',diff:'code'};
+  const first=await llm.questions(input);
+  const second=await new Llm(new GroqCapacity(db)).questions(input);
+  assert.deepEqual(second,JSON.parse(JSON.stringify(first)));assert.equal(calls,1);
+ });
+});
+test('a shared provider lease defers another instance and durable cooldown prevents calls after restart',async()=>{
+ let calls=0;
+ await transport(async()=>{calls++;throw {response:{status:429,headers:{'retry-after':'120'}}};},async(llm,db)=>{
+  await assert.rejects(llm.questions({id:'a',diff:'code'}));
+  await assert.rejects(new Llm(new GroqCapacity(db)).questions({id:'b',diff:'code'}),e=>e.capacityDeferred===true);
+  assert.equal(calls,1);assert.ok((await llm.quotaStatus).retryAt);
+ });
+});
+
+test('concurrent instances allow one provider request while another waits without calling Groq',async()=>{
+ let enter,finish;const entered=new Promise(r=>enter=r),release=new Promise(r=>finish=r);let calls=0;
+ await transport(async()=>{calls++;enter();await release;return response({questions:[question,question]});},async(llm,db)=>{
+  const first=llm.questions({id:'one',diff:'code'});await entered;
+  try{await assert.rejects(new Llm(new GroqCapacity(db)).questions({id:'two',diff:'code'}),e=>e.capacityDeferred===true);assert.equal(calls,1);}finally{finish();await first;}
+ });
 });

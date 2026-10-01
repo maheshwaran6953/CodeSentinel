@@ -167,4 +167,13 @@ describe('QuizInterrogationComponent', () => {
     expect(component.isLoading).toBeFalse();
   });
 
+  it('shows queued capacity status and prevents duplicate submission of a saved answer',()=>{
+    const session=structuredClone(mockSession);
+    session.answers['q1']={questionId:'q1',answerText:'The original submitted technical explanation.',isDraft:false,gradingStatus:'pending',gradingError:'Waiting for API capacity.',gradingRetryAt:'2026-10-01T00:00:00Z'};
+    mockQuizService.getQuizSession.and.returnValue(of(session));component.loadQuizSession();fixture.detectChanges();
+    expect(component.queuedAnswer).toBeTruthy();expect(component.answerLocked).toBeTrue();
+    expect(fixture.nativeElement.textContent).toContain('Waiting for API capacity');
+    component.submitAnswer();expect(mockQuizService.submitAnswer).not.toHaveBeenCalled();
+  });
+
 });

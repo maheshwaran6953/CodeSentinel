@@ -10,7 +10,7 @@ const {workflow}=require('./workflow.cjs');
 async function setup(run) {
  const pg=new PGlite({extensions:{pgcrypto}});
  try {
-  for(const f of ['001_initial.sql','002_durable_notifications.sql'])await pg.exec(readFileSync('migrations/'+f,'utf8'));
+  for(const f of ['001_initial.sql','002_durable_notifications.sql','003_groq_capacity.sql'])await pg.exec(readFileSync('migrations/'+f,'utf8'));
   const adapter=x=>({query:async(sql,args=[]) => (await x.query(sql,args)).rows});
   const db={...adapter(pg),source:{transaction:fn=>pg.transaction(tx=>fn(adapter(tx)))}};
   const [a,b,f]=await db.query("INSERT INTO users(name,role) VALUES ('A','student'),('B','student'),('F','faculty') RETURNING *");
@@ -57,3 +57,20 @@ test('reminders deduplicate, stop after completion/review and deep links enforce
  const [n]=await db.query("SELECT count(*)::int AS n FROM notification_events WHERE kind IN ('faculty_reminder','student_reminder')");assert.equal(n.n,2);
 }));
 test('the existing real-AST workflow remains functional with transactional notification triggers',{timeout:240000},async()=>setup(async({db})=>{await workflow(db);}));
+
+test('saved answers retry in the existing worker after capacity returns without changing the submission',async()=>setup(async({db,a,c})=>{
+ const [z]=await db.query("INSERT INTO quizzes(commit_id,student_id,trigger_reason,model) VALUES ($1,$2,'[]','test-only') RETURNING *",[c.id,a.id]);
+ const [q]=await db.query("INSERT INTO questions(quiz_id,ordinal,question_text,rubric) VALUES ($1,0,'Explain the code path','Test-only rubric') RETURNING *",[z.id]);
+ let available=false,calls=0;
+ const llm={grade:async()=>{calls++;if(!available){const e=new Error('Capacity');Object.assign(e,{retryable:true,retryAt:Date.now()+60000});throw e;}return {score:75,explanation:'Test-only grading transport',audit:{testOnly:true}};}};
+ const api=new QuizController(db,llm),answer={answerText:'The exact submitted technical explanation.'};
+ await assert.rejects(api.answer(q.id,{user:a},answer));
+ const [saved]=await db.query('SELECT * FROM responses WHERE question_id=$1',[q.id]);
+ assert.equal(saved.grading_status,'pending');assert.equal(saved.answer_text,answer.answerText);assert.ok(saved.grading_retry_at);
+ await assert.rejects(api.answer(q.id,{user:a},{answerText:'A different answer must never replace saved work.'}));
+ // Time travel is confined to this isolated automated test database.
+ await db.query("UPDATE responses SET grading_retry_at=now()-interval '1 minute' WHERE question_id=$1",[q.id]);
+ available=true;const {Analysis}=require('../dist/analysis');await new Analysis(db,{}, {},{},llm).recoverLlm();
+ const [done]=await db.query('SELECT * FROM responses WHERE question_id=$1',[q.id]);assert.equal(done.grading_status,'graded');assert.equal(done.answer_text,answer.answerText);assert.equal(calls,2);
+ await new Analysis(db,{}, {},{},llm).recoverLlm();assert.equal(calls,2);
+}));

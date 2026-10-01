@@ -10,7 +10,7 @@ test('PostgreSQL schema and complete analysis/quiz/override service contracts wi
   process.env.PYTHON_EXECUTABLE ||= process.platform==='win32'?resolve('.venv/Scripts/python.exe'):'python';
   const pg=new PGlite({extensions:{pgcrypto}});
   try {
-    await pg.exec(readFileSync('migrations/001_initial.sql','utf8'));
+    for(const f of ['001_initial.sql','002_durable_notifications.sql','003_groq_capacity.sql'])await pg.exec(readFileSync('migrations/'+f,'utf8'));
     const adapter=client=>({query:async(sql,args=[]) => (await client.query(sql,args)).rows});
     const db={...adapter(pg),source:{transaction:fn=>pg.transaction(tx=>fn(adapter(tx)))}};
     await workflow(db);

@@ -21,7 +21,7 @@ export class QuizController {
     if (!quiz) {if(quizId)throw new NotFoundException('Discussion not found');return null;}
     const questions = await this.db.query('SELECT id,question_text,code_snippet FROM questions WHERE quiz_id=$1 ORDER BY ordinal',[quiz.id]);
     const answers = await this.db.query(`SELECT r.* FROM responses r JOIN questions q ON q.id=r.question_id WHERE q.quiz_id=$1 AND r.student_id=$2`,[quiz.id,req.user.id]);
-    const answerMap = Object.fromEntries(answers.map(a => [a.question_id,{ questionId:a.question_id,answerText:a.answer_text,result:publicGrade(a.result),submittedAt:a.submitted_at,isDraft:a.is_draft,gradingStatus:a.grading_status,gradingError:a.grading_error }]));
+    const answerMap = Object.fromEntries(answers.map(a => [a.question_id,{ questionId:a.question_id,answerText:a.answer_text,result:publicGrade(a.result),submittedAt:a.submitted_at,isDraft:a.is_draft,gradingStatus:a.grading_status,gradingError:a.grading_error,gradingRetryAt:a.grading_retry_at }]));
     return { id:quiz.id,title:'Integrity Quiz Interrogation',totalQuestions:questions.length,
       currentQuestionIndex: Math.max(0,questions.findIndex(q=>!answerMap[q.id]?.result)),status:quiz.status==='completed'?'completed':'in_progress',answers:answerMap,
       questions:questions.map(q=>({id:q.id,questionText:q.question_text,codeSnippet:q.code_snippet,commitSha:quiz.sha,
@@ -46,11 +46,11 @@ export class QuizController {
     const [existing] = await this.db.query('SELECT * FROM responses WHERE question_id=$1',[id]);
     if (existing && !existing.is_draft && existing.answer_text !== body.answerText) throw new ConflictException('A different answer was already submitted. Reload to view the exact saved response before retrying.');
     if (existing?.result) return { ...publicGrade(existing.result), submittedAnswer: existing.answer_text };
-    const claim = await this.db.query(`INSERT INTO responses(question_id,student_id,answer_text,is_draft,grading_status,submitted_at)
-      VALUES ($1,$2,$3,false,'grading',now()) ON CONFLICT(question_id) DO UPDATE SET
+    const claim = await this.db.query(`INSERT INTO responses(question_id,student_id,answer_text,is_draft,grading_status,submitted_at,grading_attempts)
+      VALUES ($1,$2,$3,false,'grading',now(),1) ON CONFLICT(question_id) DO UPDATE SET
       answer_text=CASE WHEN responses.is_draft THEN excluded.answer_text ELSE responses.answer_text END,
-      is_draft=false,grading_status='grading',grading_error=null,submitted_at=coalesce(responses.submitted_at,now()),updated_at=now()
-      WHERE responses.result IS NULL AND (responses.is_draft OR responses.answer_text=excluded.answer_text) AND (responses.grading_status<>'grading' OR responses.updated_at<now()-interval '2 minutes') RETURNING answer_text`,
+      is_draft=false,grading_status='grading',grading_error=null,grading_retry_at=null,grading_attempts=CASE WHEN responses.grading_status='failed' THEN 1 ELSE responses.grading_attempts+1 END,submitted_at=coalesce(responses.submitted_at,now()),updated_at=now()
+      WHERE responses.result IS NULL AND (responses.is_draft OR responses.answer_text=excluded.answer_text) AND (responses.grading_status<>'grading' OR responses.updated_at<now()-interval '2 minutes') RETURNING answer_text,grading_attempts`,
     [id,req.user.id,body.answerText]);
     if (!claim.length) throw new ConflictException('This answer is being graded; retry shortly');
     try {
@@ -58,7 +58,7 @@ export class QuizController {
       await this.db.source.transaction(async tx => {
         // Serialize quiz completion across submissions to different questions.
         await tx.query('SELECT id FROM quizzes WHERE id=$1 FOR UPDATE',[question.quiz_id]);
-        await tx.query("UPDATE responses SET result=$2,grading_status='graded',updated_at=now() WHERE question_id=$1",[id,JSON.stringify(result)]);
+        await tx.query("UPDATE responses SET result=$2,grading_status='graded',grading_retry_at=null,grading_error=null,updated_at=now() WHERE question_id=$1",[id,JSON.stringify(result)]);
         const grades = await tx.query('SELECT r.result FROM questions q LEFT JOIN responses r ON r.question_id=q.id WHERE q.quiz_id=$1',[question.quiz_id]);
         if (grades.every((g: any)=>g.result)) {
           const avg = grades.reduce((sum: number,g: any)=>sum+g.result.score,0)/grades.length;
@@ -73,10 +73,13 @@ export class QuizController {
       });
       return { ...publicGrade(result), submittedAnswer: claim[0].answer_text };
     } catch (error) {
+      const retry=(error as any)?.retryable && ((error as any)?.capacityDeferred || claim[0].grading_attempts<5);
+      const retryAt=retry?new Date(Math.max(Date.now()+30000,(error as any).retryAt || 0)):null;
       const audit = (error as any)?.providerAudit;
       if (audit) await this.db.query(`UPDATE commits SET signals=jsonb_set(coalesce(signals,'{}'::jsonb),'{gradingAttempts}',coalesce(signals->'gradingAttempts','[]'::jsonb) || $2::jsonb) WHERE id=$1`,
         [question.commit_id,JSON.stringify([{questionId:id,submittedAnswer:claim[0].answer_text,rubric:question.rubric,question:question.question_text,status:'failed',...audit}])]);
-      await this.db.query("UPDATE responses SET grading_status='failed',grading_error='Grading unavailable; original answer saved. Retry submission.',updated_at=now() WHERE question_id=$1 AND result IS NULL",[id]);
+      await this.db.query("UPDATE responses SET grading_status=$2,grading_error=$3,grading_retry_at=$4,grading_attempts=greatest(0,grading_attempts-$5),updated_at=now() WHERE question_id=$1 AND result IS NULL",
+        [id,retry?'pending':'failed',retry?'Waiting for API capacity or provider recovery. Saved answer will retry automatically.':'Automatic grading stopped or unavailable. Original answer saved; retry manually.',retryAt,(error as any)?.capacityDeferred?1:0]);
       throw error;
     }
   }

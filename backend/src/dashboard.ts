@@ -62,7 +62,7 @@ export class FacultyController {
   @Get('commits/:id') async evidence(@Param('id',ParseUUIDPipe) id: string) {
     const [commit] = await this.db.query('SELECT * FROM commits WHERE id=$1',[id]);
     if (!commit) throw new NotFoundException('Commit not found');
-    const questions = await this.db.query(`SELECT q.*,r.answer_text,r.result,r.is_draft,r.grading_status,r.grading_error,r.submitted_at
+    const questions = await this.db.query(`SELECT q.*,r.answer_text,r.result,r.is_draft,r.grading_status,r.grading_error,r.grading_retry_at,r.submitted_at
       FROM questions q JOIN quizzes z ON z.id=q.quiz_id LEFT JOIN responses r ON r.question_id=q.id WHERE z.commit_id=$1 ORDER BY q.ordinal`,[id]);
     const overrides = await this.db.query('SELECT o.*,u.name AS faculty_name FROM overrides o JOIN users u ON u.id=o.faculty_id WHERE commit_id=$1 ORDER BY o.created_at DESC',[id]);
     const scoreHistory = await this.db.query('SELECT * FROM score_history WHERE commit_id=$1 ORDER BY created_at',[id]);
@@ -83,7 +83,7 @@ export class FacultyController {
     if ((await this.db.query('SELECT id FROM quizzes WHERE commit_id=$1',[id])).length) throw new ConflictException('A technical discussion already exists for this commit');
     if (!commit.diff) throw new ConflictException('No source diff is available for technical questions');
     await this.override(id,req,{action:'note',reason:body.reason});
-    await this.db.query(`UPDATE commits SET signals=jsonb_set(coalesce(signals,'{}'::jsonb),'{discussionRequested}', 'true'::jsonb),quiz_status='pending' WHERE id=$1`,[id]);
+    await this.db.query(`UPDATE commits SET signals=jsonb_set(coalesce(signals,'{}'::jsonb),'{discussionRequested}', 'true'::jsonb),quiz_status='pending',quiz_retry_at=now(),quiz_attempts=0 WHERE id=$1`,[id]);
     await this.queue.enqueue('quiz',`quiz-${id}`,{repositoryId:commit.repository_id,commitId:id});
     return {queued:true};
   }
@@ -91,6 +91,7 @@ export class FacultyController {
     const [commit] = await this.db.query('SELECT * FROM commits WHERE id=$1',[id]);
     if (!commit) throw new NotFoundException('Commit not found');
     if (commit.quiz_status==='failed' || commit.quiz_status==='pending') {
+      if(commit.quiz_status==='failed')await this.db.query("UPDATE commits SET quiz_status='pending',quiz_attempts=0,quiz_retry_at=now() WHERE id=$1",[id]);
       await this.queue.enqueue('quiz',`quiz-${id}`,{repositoryId:commit.repository_id,commitId:id});
     } else if (['failed','partial','queued'].includes(commit.status)) {
       const existing = await this.queue.queue.getJob(`commit-${id}`);
