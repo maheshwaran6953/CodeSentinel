@@ -5,7 +5,7 @@ import { Router } from '@angular/router';
 import { Subject, timer } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { AuthService } from './services/auth.service';
-interface Notice {id:string;title:string;context:string;occurredAt:string;readAt:string|null;path:string;commitId?:string;studentId?:string;quizId?:string;questionId?:string}
+interface Notice {classId?:string;teamId?:string;id:string;title:string;context:string;occurredAt:string;readAt:string|null;path:string;commitId?:string;studentId?:string;quizId?:string;questionId?:string}
 interface InboxPage {items:Notice[];unreadCount:number;asOf:string;nextCursor:string|null}
 @Component({selector:'app-notifications',standalone:true,imports:[CommonModule],template:`
   <button *ngIf="userId" class="inbox-toggle" [style.bottom]="router.url.includes('quiz-interrogation') ? '112px' : '20px'" (click)="openInbox()" aria-haspopup="dialog">Updates <span>{{unread}}</span></button>
@@ -64,7 +64,7 @@ export class NotificationsComponent implements OnInit,OnDestroy {
     if(this.saving || this.loading)return;this.saving=true;
     this.http.post<{readAt:string}>('/notifications/'+item.id+'/read',{}).pipe(takeUntil(this.stop$),takeUntil(this.accountChanged$)).subscribe({next:r=>{
       this.saving=false;if(!item.readAt)this.unread=Math.max(0,this.unread-1);item.readAt=r.readAt;this.dialog.nativeElement.close();
-      void this.router.navigate([item.path],{queryParams:item.studentId?{commit:item.commitId,student:item.studentId}:item.quizId?{quiz:item.quizId,question:item.questionId}:item.commitId?{commit:item.commitId}:undefined});
+      void this.router.navigate([item.path],{queryParams:item.classId?{classId:item.classId,teamId:item.teamId}:item.studentId?{commit:item.commitId,student:item.studentId}:item.quizId?{quiz:item.quizId,question:item.questionId}:item.commitId?{commit:item.commitId}:undefined});
     },error:()=>{this.saving=false;this.error='Unable to open this notification. Refresh and retry.';}});
   }
   ngOnDestroy() {this.stop$.next();this.stop$.complete();this.accountChanged$.complete();}

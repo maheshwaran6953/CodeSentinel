@@ -15,7 +15,8 @@ import { Llm } from './llm';
 import { QuizController } from './quiz';
 import { FacultyController, StudentController } from './dashboard';
 import { NotificationsController } from './notifications';
+import { AcademicAccess, ClassesController, TeamsController } from './classes';
 
-@Module({ imports:[JwtModule.register({})],controllers:[AuthController,RepositoryController,WebhookController,QuizController,StudentController,FacultyController,NotificationsController],
-  providers:[Database,GitHub,AnalysisQueue,Analysis,Stylometry,Llm,GroqCapacity,{provide:APP_GUARD,useClass:AccessGuard}] })
+@Module({ imports:[JwtModule.register({})],controllers:[AuthController,RepositoryController,WebhookController,QuizController,StudentController,FacultyController,NotificationsController,ClassesController,TeamsController],
+  providers:[Database,GitHub,AnalysisQueue,Analysis,Stylometry,Llm,GroqCapacity,AcademicAccess,{provide:APP_GUARD,useClass:AccessGuard}] })
 export class AppModule {}

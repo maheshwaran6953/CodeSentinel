@@ -2,7 +2,8 @@ import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testin
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../services/auth.service';
-import { Router } from '@angular/router';
+import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
 import { of, throwError } from 'rxjs';
 import { RepositoryLinkingComponent } from './repository-linking.component';
 import { RepositoryService } from '../../services/repository.service';
@@ -65,7 +66,9 @@ describe('RepositoryLinkingComponent', () => {
         { provide: RepositoryService, useValue: mockRepositoryService },
         { provide: StudentService, useValue: mockStudentService },
         { provide: Router, useValue: mockRouter }
-        ,{ provide: AuthService, useValue: { installApp: () => {} } }
+        ,{ provide: AuthService, useValue: { installApp: () => {}, getCurrentUser:()=>({id:'student-1'}) } },
+        { provide: HttpClient, useValue:{get:()=>of({enrollments:[],teams:[]})} },
+        { provide: ActivatedRoute, useValue:{snapshot:{queryParamMap:convertToParamMap({})}} }
       ]
     }).compileComponents();
 
@@ -107,6 +110,14 @@ describe('RepositoryLinkingComponent', () => {
     expect(component.currentStep).toBe(3);
     expect(component.webhookStatus?.status).toBe('completed');
     expect(mockStudentService.updateLinkedRepository).toHaveBeenCalledWith(mockRepos[0]);
+  });
+  it('requires an approved lead team for enrolled students and passes the team identity',()=>{
+    component.enrolled=true;component.proceedToReview();expect(component.currentStep).toBe(1);
+    component.teamId='team-1';component.proceedToReview();expect(component.currentStep).toBe(2);
+    component.proceedToLinking();expect(mockRepositoryService.registerWebhook).toHaveBeenCalledWith(mockRepos[0],'team-1');
+  });
+  it('does not permit linking when membership lookup fails',()=>{
+    component.teamContextReady=false;component.proceedToLinking();expect(mockRepositoryService.registerWebhook).not.toHaveBeenCalled();
   });
 
   it('should navigate back to dashboard on cancel or completion', () => {

@@ -21,6 +21,7 @@ const routes: Routes = [
     canActivate: [AuthGuard, StudentGuard],
     children: [
       { path: 'dashboard', component: StudentDashboardComponent },
+      { path: 'team', loadComponent:()=>import('./team-workspace/team-workspace.component').then(m=>m.TeamWorkspaceComponent) },
       { path: 'repository-linking', component: RepositoryLinkingComponent },
       { path: 'quiz-interrogation', component: QuizInterrogationComponent },
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' }
@@ -33,6 +34,7 @@ const routes: Routes = [
     canActivate: [AuthGuard, FacultyGuard],
     children: [
       { path: 'cohort', component: FacultyComponent },
+      { path: 'classes', loadComponent:()=>import('./class-management/class-management.component').then(m=>m.ClassManagementComponent) },
       { path: '', redirectTo: 'cohort', pathMatch: 'full' }
     ]
   },

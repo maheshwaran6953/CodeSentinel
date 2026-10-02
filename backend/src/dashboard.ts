@@ -15,7 +15,10 @@ export class StudentController {
   constructor(private db: Database) {}
   @Get('dashboard') async dashboard(@Req() req: AuthRequest,@Query('commit') commitId?:string) {
     if(commitId && !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(commitId))throw new BadRequestException('Invalid commit ID');
-    const repos = await this.db.query('SELECT * FROM repositories WHERE student_id=$1 ORDER BY linked_at DESC',[req.user.id]);
+    const repos = await this.db.query(`SELECT r.* FROM repositories r WHERE
+      (r.team_id IS NULL AND r.student_id=$1) OR EXISTS(SELECT 1 FROM team_members m
+        JOIN roster_students s ON s.id=m.roster_id WHERE m.team_id=r.team_id AND m.status='accepted' AND s.user_id=$1)
+      ORDER BY r.linked_at DESC`,[req.user.id]);
     const commits = await this.db.query('SELECT c.*,r.full_name FROM commits c JOIN repositories r ON r.id=c.repository_id WHERE c.student_id=$1 ORDER BY c.committed_at DESC NULLS LAST LIMIT 50',[req.user.id]);
     const [stats] = await this.db.query(`SELECT count(*)::int AS total,
       count(*) FILTER(WHERE flagged)::int AS flagged FROM commits WHERE student_id=$1`,[req.user.id]);
@@ -39,28 +42,34 @@ export class StudentController {
 export class FacultyController {
   constructor(private db: Database,private queue: AnalysisQueue,private llm:Llm) {}
   @Get('provider-status') providerStatus() {return this.llm.quotaStatus;}
-  @Get('students') async students() {
+  @Get('students') async students(@Req() req: AuthRequest) {
     const rows = await this.db.query(`SELECT u.id,u.name,u.github_login,
-      (SELECT count(*)::int FROM repositories r WHERE r.student_id=u.id AND active) AS repositories,
-      (SELECT count(*)::int FROM commits c WHERE c.student_id=u.id) AS commits,
-      (SELECT max(committed_at) FROM commits c WHERE c.student_id=u.id) AS last_activity,
-      (SELECT count(*)::int FROM quizzes q WHERE q.student_id=u.id AND q.status<>'completed') AS pending_discussions,
-      (SELECT signals FROM commits c WHERE c.student_id=u.id ORDER BY committed_at DESC NULLS LAST LIMIT 1) AS signals,
-      (SELECT count(*)::int FROM commits c WHERE c.student_id=u.id AND flagged) AS flagged
-      FROM users u WHERE role='student' ORDER BY u.name`);
+      (SELECT count(*)::int FROM repositories r WHERE active AND faculty_can_access_repository($1,r.id) AND
+        ((r.team_id IS NULL AND r.student_id=u.id) OR EXISTS(SELECT 1 FROM team_members m JOIN roster_students s ON s.id=m.roster_id
+          WHERE m.team_id=r.team_id AND m.status='accepted' AND s.user_id=u.id))) AS repositories,
+      (SELECT count(*)::int FROM commits c WHERE c.student_id=u.id AND faculty_can_access_repository($1,c.repository_id)) AS commits,
+      (SELECT max(committed_at) FROM commits c WHERE c.student_id=u.id AND faculty_can_access_repository($1,c.repository_id)) AS last_activity,
+      (SELECT count(*)::int FROM quizzes q JOIN commits c ON c.id=q.commit_id WHERE q.student_id=u.id AND q.status<>'completed'
+        AND faculty_can_access_repository($1,c.repository_id)) AS pending_discussions,
+      (SELECT signals FROM commits c WHERE c.student_id=u.id AND faculty_can_access_repository($1,c.repository_id) ORDER BY committed_at DESC NULLS LAST LIMIT 1) AS signals,
+      (SELECT count(*)::int FROM commits c WHERE c.student_id=u.id AND flagged AND faculty_can_access_repository($1,c.repository_id)) AS flagged
+      FROM users u WHERE role='student' AND faculty_can_access_student($1,u.id) ORDER BY u.name`,[req.user.id]);
     return rows.map(r=>({...r,signals:undefined,authenticity_score:null,evidence_status:publicEvidence(r).status}));
   }
-  @Get('students/:id') async student(@Param('id',ParseUUIDPipe) id: string) {
-    const [student] = await this.db.query("SELECT id,name,github_login,email FROM users WHERE id=$1 AND role='student'",[id]);
+  @Get('students/:id') async student(@Param('id',ParseUUIDPipe) id: string,@Req() req: AuthRequest) {
+    const [student] = await this.db.query("SELECT id,name,github_login,email FROM users WHERE id=$1 AND role='student' AND faculty_can_access_student($2,id)",[id,req.user.id]);
     if (!student) throw new NotFoundException('Student not found');
-    const repositories = await this.db.query('SELECT * FROM repositories WHERE student_id=$1',[id]);
+    const repositories = await this.db.query(`SELECT r.* FROM repositories r WHERE faculty_can_access_repository($2,r.id) AND
+      ((r.team_id IS NULL AND r.student_id=$1) OR EXISTS(SELECT 1 FROM team_members m JOIN roster_students s ON s.id=m.roster_id
+        WHERE m.team_id=r.team_id AND m.status='accepted' AND s.user_id=$1)
+      OR EXISTS(SELECT 1 FROM commits c WHERE c.repository_id=r.id AND c.student_id=$1))`,[id,req.user.id]);
     const commits = await this.db.query(`SELECT c.id,c.sha,c.message,c.committed_at,c.status,c.error,c.additions,c.deletions,c.changed_files,
       c.signals,c.flagged,c.reasons,c.quiz_status,c.velocity,c.stylometry->>'maturity' AS baseline,
-      r.full_name FROM commits c JOIN repositories r ON r.id=c.repository_id WHERE c.student_id=$1 ORDER BY c.committed_at DESC NULLS LAST`,[id]);
+      r.full_name FROM commits c JOIN repositories r ON r.id=c.repository_id WHERE c.student_id=$1 AND faculty_can_access_repository($2,r.id) ORDER BY c.committed_at DESC NULLS LAST`,[id,req.user.id]);
     return {student,repositories,commits:commits.map(c=>({...c,signals:undefined,baseline:publicEvidence(c).baseline.status,evidence:publicEvidence(c)}))};
   }
-  @Get('commits/:id') async evidence(@Param('id',ParseUUIDPipe) id: string) {
-    const [commit] = await this.db.query('SELECT * FROM commits WHERE id=$1',[id]);
+  @Get('commits/:id') async evidence(@Param('id',ParseUUIDPipe) id: string,@Req() req: AuthRequest) {
+    const [commit] = await this.db.query('SELECT * FROM commits WHERE id=$1 AND faculty_can_access_repository($2,repository_id)',[id,req.user.id]);
     if (!commit) throw new NotFoundException('Commit not found');
     const questions = await this.db.query(`SELECT q.*,r.answer_text,r.result,r.is_draft,r.grading_status,r.grading_error,r.grading_retry_at,r.submitted_at
       FROM questions q JOIN quizzes z ON z.id=q.quiz_id LEFT JOIN responses r ON r.question_id=q.id WHERE z.commit_id=$1 ORDER BY q.ordinal`,[id]);
@@ -69,7 +78,7 @@ export class FacultyController {
     return {commit:{...commit,risk_score:null,authenticity_score:null,evidence:publicEvidence(commit)},questions,overrides,scoreHistory};
   }
   @Post('commits/:id/override') async override(@Param('id',ParseUUIDPipe) id: string,@Req() req: AuthRequest,@Body() body: OverrideDto) {
-    const [commit] = await this.db.query('SELECT risk_score,authenticity_score,signals,reasons,flagged FROM commits WHERE id=$1',[id]);
+    const [commit] = await this.db.query('SELECT risk_score,authenticity_score,signals,reasons,flagged FROM commits WHERE id=$1 AND faculty_can_access_repository($2,repository_id)',[id,req.user.id]);
     if (!commit) throw new NotFoundException('Commit not found');
     if (body.reason.trim().length<10) throw new ConflictException('Provide a meaningful review reason');
     const questions = await this.db.query(`SELECT q.id,q.question_text,q.rubric,r.answer_text,r.result FROM questions q JOIN quizzes z ON z.id=q.quiz_id LEFT JOIN responses r ON r.question_id=q.id WHERE z.commit_id=$1`,[id]);
@@ -78,8 +87,9 @@ export class FacultyController {
     return {saved:true};
   }
   @Post('commits/:id/discussion') async discussion(@Param('id',ParseUUIDPipe) id: string,@Req() req: AuthRequest,@Body() body: OverrideDto) {
-    const [commit] = await this.db.query('SELECT * FROM commits WHERE id=$1',[id]);
+    const [commit] = await this.db.query('SELECT * FROM commits WHERE id=$1 AND faculty_can_access_repository($2,repository_id)',[id,req.user.id]);
     if (!commit) throw new NotFoundException('Commit not found');
+    if (!commit.student_id || commit.signals?.attribution?.status==='shared_or_merge') throw new ConflictException('This commit has no unambiguous individual attribution. Review its evidence without assigning an individual quiz.');
     if ((await this.db.query('SELECT id FROM quizzes WHERE commit_id=$1',[id])).length) throw new ConflictException('A technical discussion already exists for this commit');
     if (!commit.diff) throw new ConflictException('No source diff is available for technical questions');
     await this.override(id,req,{action:'note',reason:body.reason});
@@ -87,10 +97,11 @@ export class FacultyController {
     await this.queue.enqueue('quiz',`quiz-${id}`,{repositoryId:commit.repository_id,commitId:id});
     return {queued:true};
   }
-  @Post('commits/:id/retry') async retry(@Param('id',ParseUUIDPipe) id: string) {
-    const [commit] = await this.db.query('SELECT * FROM commits WHERE id=$1',[id]);
+  @Post('commits/:id/retry') async retry(@Param('id',ParseUUIDPipe) id: string,@Req() req: AuthRequest) {
+    const [commit] = await this.db.query('SELECT * FROM commits WHERE id=$1 AND faculty_can_access_repository($2,repository_id)',[id,req.user.id]);
     if (!commit) throw new NotFoundException('Commit not found');
     if (commit.quiz_status==='failed' || commit.quiz_status==='pending') {
+      if (!commit.student_id) throw new ConflictException('Unattributed commits cannot receive an individual quiz.');
       if(commit.quiz_status==='failed')await this.db.query("UPDATE commits SET quiz_status='pending',quiz_attempts=0,quiz_retry_at=now() WHERE id=$1",[id]);
       await this.queue.enqueue('quiz',`quiz-${id}`,{repositoryId:commit.repository_id,commitId:id});
     } else if (['failed','partial','queued'].includes(commit.status)) {

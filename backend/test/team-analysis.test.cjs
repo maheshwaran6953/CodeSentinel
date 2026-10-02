@@ -1,0 +1,71 @@
+require('reflect-metadata');
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const {readFileSync,readdirSync}=require('node:fs');
+const {PGlite}=require('@electric-sql/pglite');
+const {pgcrypto}=require('@electric-sql/pglite/contrib/pgcrypto');
+const {Analysis}=require('../dist/analysis');
+const {RepositoryController}=require('../dist/repositories');
+
+test('team repository links require its accepted lead; mixed-author pushes retain individual baselines and unknown attribution',{timeout:120000},async()=>{
+  const pg=new PGlite({extensions:{pgcrypto}});
+  try {
+    for(const file of readdirSync('migrations').filter(f=>f.endsWith('.sql')).sort()) await pg.exec(readFileSync('migrations/'+file,'utf8'));
+    const adapter=client=>({query:async(sql,args=[]) => (await client.query(sql,args)).rows});
+    const db={...adapter(pg),source:{transaction:fn=>pg.transaction(tx=>fn(adapter(tx)))}};
+    const [faculty]=await db.query("INSERT INTO users(name,role) VALUES ('Test advisor','faculty') RETURNING *");
+    const [lead]=await db.query("INSERT INTO users(github_id,name,role) VALUES ('101','Test lead','student') RETURNING *");
+    const [member]=await db.query("INSERT INTO users(github_id,name,role) VALUES ('102','Test member','student') RETURNING *");
+    const [klass]=await db.query("INSERT INTO project_classes(advisor_id,department,section,graduation_year,team_member_limit) VALUES ($1,'IT','B',2027,2) RETURNING *",[faculty.id]);
+    const [r1]=await db.query("INSERT INTO roster_students(class_id,register_number,name,user_id) VALUES ($1,'TEST01','Test lead',$2) RETURNING *",[klass.id,lead.id]);
+    const [r2]=await db.query("INSERT INTO roster_students(class_id,register_number,name,user_id) VALUES ($1,'TEST02','Test member',$2) RETURNING *",[klass.id,member.id]);
+    const [team]=await db.query("INSERT INTO project_teams(class_id,name,project_title,lead_roster_id,approved,created_by) VALUES ($1,'Test team','Test project',$2,true,$3) RETURNING *",[klass.id,r1.id,faculty.id]);
+    await db.query("INSERT INTO team_members(team_id,roster_id,status,invited_by,joined_at) VALUES ($1,$2,'accepted',$4,now()),($1,$3,'accepted',$4,now())",[team.id,r1.id,r2.id,faculty.id]);
+    const shas=['a','b','c','d'].map(c=>c.repeat(40));
+    const authors=['101','102','101','999'];
+    const repoInfo={id:'12345',installationId:'123',owner:'test',name:'team-project',fullName:'test/team-project',defaultBranch:'main',url:'https://github.com/test/team-project'};
+    const github={repositories:async()=>[repoInfo],installationToken:async()=>'test-only-token',pages:async()=>shas.map(sha=>({sha})),api:async(path)=>{
+      if(path===`/repos/${repoInfo.fullName}`)return {};
+      if(path.includes('/contents/.gitignore'))return {type:'file',encoding:'base64',size:0,content:''};
+      if(path.includes('/contents/'))return {type:'file',encoding:'base64',size:30,content:Buffer.from('export const count = 1;').toString('base64')};
+      const index=shas.findIndex(sha=>path.includes(sha));
+      assert.ok(index>=0,'fixture must match a specific commit');
+      return {author:{id:authors[index]},parents:index?[{sha:shas[index-1]}]:[],commit:{author:{name:'Fixture author'},committer:{date:new Date(Date.UTC(2026,0,index+1)).toISOString()},message:'Test-only increment'},stats:{additions:10,deletions:0},files:[{filename:`member-${authors[index]}.ts`,status:'modified',additions:10,deletions:0,patch:'+export const count = 1;'}]};
+    }};
+    const queue={enqueue:async()=>{}};
+    const links=new RepositoryController(db,github,queue);
+    await assert.rejects(links.link({user:member},{repositoryId:repoInfo.id,teamId:team.id}),e=>e.getStatus()===403);
+    await db.query('UPDATE project_teams SET approved=false WHERE id=$1',[team.id]);
+    await assert.rejects(links.link({user:lead},{repositoryId:repoInfo.id,teamId:team.id}),e=>e.getStatus()===403);
+    await db.query('UPDATE project_teams SET approved=true WHERE id=$1',[team.id]);
+    await links.link({user:lead},{repositoryId:repoInfo.id,teamId:team.id});
+    const [repo]=await db.query('SELECT * FROM repositories WHERE github_id=$1',[repoInfo.id]);
+    assert.equal(repo.team_id,team.id);
+    await db.query('UPDATE project_teams SET lead_roster_id=$2 WHERE id=$1',[team.id,r2.id]);
+    await links.link({user:member},{repositoryId:repoInfo.id,teamId:team.id});
+    assert.equal((await db.query('SELECT student_id FROM repositories WHERE id=$1',[repo.id]))[0].student_id,lead.id,'lead reassignment preserves original linker audit');
+    await db.query('UPDATE project_teams SET lead_roster_id=$2 WHERE id=$1',[team.id,r1.id]);
+    await assert.rejects(links.link({user:lead},{repositoryId:repoInfo.id}),e=>e.getStatus()===403,'a team repository must not silently become personal');
+    const calls=[];
+    // Explicit test-only AST transport; production still uses the existing Python implementation.
+    const ast={analyze:async(input)=>{calls.push(input);return {risk:null,features:{},languages:[],files:[]};}};
+    const llm={questions:async()=>{assert.fail('insufficient or unknown attribution must never generate a quiz');}};
+    const analysis=new Analysis(db,github,queue,ast,llm);
+    await analysis.process({name:'push',data:{repositoryId:repo.id,before:'f'.repeat(40),after:shas[3]}});
+    const records=await db.query('SELECT * FROM commits ORDER BY committed_at');
+    assert.deepEqual(records.map(r=>r.student_id),[lead.id,member.id,lead.id,null]);
+    assert.deepEqual(records.map(r=>r.signals.developmentEvent.index),[1,2,3,4]);
+    assert.equal(records[3].status,'excluded');
+    assert.equal(records[3].signals.attribution.status,'unattributed');
+    assert.equal(records[0].velocity.historyCount,0);
+    assert.equal(records[1].velocity.historyCount,0);
+    assert.equal(records[2].velocity.historyCount,1);
+    assert.deepEqual(calls.map(c=>c.studentId),[lead.id,member.id,lead.id]);
+    assert.deepEqual(calls[2].history.map(h=>h.sha),[shas[0]],'teammate commit must not break graph traversal or enter personal history');
+    assert.deepEqual(records[2].signals.evidence.teamContinuity.historicalReferences,[shas[0],shas[1]]);
+    await analysis.process({name:'push',data:{repositoryId:repo.id,before:'f'.repeat(40),after:shas[3]}});
+    assert.equal(calls.length,3,'redelivery must not rewrite completed individual evidence');
+    await analysis.generateQuiz(records[3].id);
+    assert.equal((await db.query('SELECT count(*)::int AS count FROM quizzes'))[0].count,0);
+  } finally {await pg.close();}
+});

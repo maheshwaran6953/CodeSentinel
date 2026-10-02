@@ -1,5 +1,6 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { RepositoryService } from '../../services/repository.service';
@@ -25,6 +26,7 @@ export class RepositoryLinkingComponent implements OnInit, OnDestroy {
   isLoading: boolean = false;
   isSearching: boolean = false;
   error: string | null = null;
+  teamId=''; teams:any[]=[]; enrolled=false; teamContextReady=false;
 
   // Webhook registration state
   webhookStatus: WebhookStatus | null = null;
@@ -38,11 +40,20 @@ export class RepositoryLinkingComponent implements OnInit, OnDestroy {
     private repositoryService: RepositoryService,
     private studentService: StudentService,
     private router: Router,
-    public auth: AuthService
+    public auth: AuthService,
+    private http: HttpClient,
+    private route: ActivatedRoute
   ) {}
 
   ngOnInit(): void {
     this.loadRepositories();
+    this.http.get<any>('/teams/me').pipe(takeUntil(this.destroy$)).subscribe({next:data=>{
+      this.enrolled=data.enrollments.length>0;
+      this.teams=data.teams.filter((t:any)=>t.approved&&t.members.some((m:any)=>m.roster_id===t.lead_roster_id&&m.user_id===this.auth.getCurrentUser()?.id&&m.status==='accepted'));
+      const requested=this.route.snapshot.queryParamMap.get('team');
+      this.teamId=this.teams.some(t=>t.id===requested)?requested!:(this.teams.length===1?this.teams[0].id:'');
+      this.teamContextReady=true;
+    },error:()=>{this.error='Team membership could not be verified. Reload this page before linking a repository.';}});
   }
 
   ngOnDestroy(): void {
@@ -121,6 +132,7 @@ export class RepositoryLinkingComponent implements OnInit, OnDestroy {
    * Proceed to Step 2 (Review)
    */
   proceedToReview(): void {
+    if(!this.teamContextReady || (this.enrolled&&!this.teamId)){this.error='Choose an approved team you lead before linking its repository.';return;}
     if (!this.selectedRepository) {
       this.error = 'Please select a repository';
       return;
@@ -141,6 +153,7 @@ export class RepositoryLinkingComponent implements OnInit, OnDestroy {
    * Proceed to Step 3 (Webhook Linking)
    */
   proceedToLinking(): void {
+    if(!this.teamContextReady || (this.enrolled&&!this.teamId)){this.error='Team membership must be verified before linking.';return;}
     if (!this.selectedRepository) {
       this.error = 'No repository selected';
       return;
@@ -165,7 +178,7 @@ export class RepositoryLinkingComponent implements OnInit, OnDestroy {
 
     this.simulateRegistrationProgress();
 
-    this.repositoryService.registerWebhook(this.selectedRepository)
+    this.repositoryService.registerWebhook(this.selectedRepository, this.teamId||undefined)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (status) => {

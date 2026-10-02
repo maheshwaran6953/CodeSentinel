@@ -1,5 +1,5 @@
 <div class="dashboard-wrapper">
-  <header class="top-nav"><div class="brand-logo">Code<span class="brand-blue">Sentinel</span> / Faculty</div><button class="btn-primary" (click)="auth.logout()">Sign out</button></header>
+  <header class="top-nav"><div class="brand-logo">Code<span class="brand-blue">Sentinel</span> / Faculty</div><a routerLink="/faculty/classes">Classes &amp; teams</a><button class="btn-primary" (click)="auth.logout()">Sign out</button></header>
   <main class="main-container"><div class="dashboard-content">
     <div class="header-section"><h1 class="page-title">Authorship evidence</h1><p class="page-subtitle">Signals support review; they do not prove misconduct. Updates every 15 seconds.</p></div>
     <p role="alert" *ngIf="error">{{error}} <button (click)="refresh()">Retry</button></p>

@@ -12,7 +12,7 @@ export class FacultyComponent implements OnInit,OnDestroy {
   provider:any=null; private activeCommit='';
   constructor(private http:HttpClient,public auth:AuthService,private route:ActivatedRoute,private router:Router) {}
   ngOnInit() {this.watchLinks();this.refresh();timer(15000,15000).pipe(takeUntil(this.destroy$)).subscribe(()=>this.refresh());}
-  private watchLinks() {this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe(params=>{const commit=params.get('commit'),student=params.get('student');if(student && /^[a-f0-9-]{36}$/i.test(student)){this.openStudent(student);if(commit && /^[a-f0-9-]{36}$/i.test(commit))this.openCommit(commit);}});}
+  private watchLinks() {this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe(params=>{const commit=params.get('commit'),student=params.get('student');if(student && /^[a-f0-9-]{36}$/i.test(student))this.openStudent(student);if(commit && /^[a-f0-9-]{36}$/i.test(commit))this.openCommit(commit);});}
   ngOnDestroy() {this.destroy$.next();this.destroy$.complete();}
   refresh() {
     this.http.get('/faculty/provider-status').pipe(takeUntil(this.destroy$)).subscribe({next:r=>this.provider=r,error:()=>this.provider=null});

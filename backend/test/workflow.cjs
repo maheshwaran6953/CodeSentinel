@@ -10,6 +10,7 @@ const { StudentController,FacultyController } = require('../dist/dashboard');
 async function workflow(db, queueTransport) {
   const [student] = await db.query("INSERT INTO users(github_id,github_login,name,role) VALUES ($1,'test-student','Test student','student') RETURNING *",[randomUUID()]);
   const [faculty] = await db.query("INSERT INTO users(name,role) VALUES ('Test faculty','faculty') RETURNING *");
+  await db.query('INSERT INTO legacy_faculty(faculty_id) VALUES ($1)',[faculty.id]);
   const [repo] = await db.query(`INSERT INTO repositories(github_id,student_id,installation_id,owner,name,full_name,default_branch,url)
     VALUES ($1,$2,'123','owner','project','owner/project','main','https://github.com/owner/project') RETURNING *`,[randomUUID(),student.id]);
   repo.student_github_id=student.github_id;
@@ -67,7 +68,7 @@ async function workflow(db, queueTransport) {
   assert.equal(gradeCalls,2);assert.equal(await quiz.active(req),null);
   const dashboard=await new StudentController(db).dashboard(req);assert.equal(dashboard.total_commits,10);assert.equal(dashboard.pending_quizzes,0);
 
-  const before=await facultyApi.evidence(flagged);assert.equal(before.scoreHistory.length,2);
+  const before=await facultyApi.evidence(flagged,{user:faculty});assert.equal(before.scoreHistory.length,2);
   // A repaired partial AST analysis must retain the already completed quiz signal.
   await db.query("UPDATE commits SET status='partial' WHERE id=$1",[flagged]);
   await analysis.commit(repo,commit.sha,'fixture-token');
@@ -75,7 +76,7 @@ async function workflow(db, queueTransport) {
   assert.equal(reanalyzed.signals.evidence.technicalUnderstanding.rubricPoints,80);
   assert.equal(reanalyzed.quiz_status,'generated');
   await facultyApi.override(flagged,{user:faculty},{action:'legitimate',reason:'Documented framework migration discussed with the student.'});
-  const after=await facultyApi.evidence(flagged);assert.equal(after.overrides.length,2);
+  const after=await facultyApi.evidence(flagged,{user:faculty});assert.equal(after.overrides.length,2);
   assert.equal(after.commit.risk_score,before.commit.risk_score);assert.equal(after.commit.flagged,false);
   assert.equal(after.questions[0].answer_text,answer.answerText);
   return {studentId:student.id,facultyId:faculty.id,repositoryId:repo.id};

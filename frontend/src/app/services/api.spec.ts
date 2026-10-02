@@ -23,6 +23,12 @@ describe('Authenticated API contracts',()=>{
     TestBed.inject(HttpClient).get('/notifications').subscribe();
     const request=http.expectOne('/api/notifications');expect(request.request.withCredentials).toBeTrue();request.flush([]);
   });
+  it('routes class and team operations to the credentialed backend',()=>{
+    for(const route of ['/classes','/teams/me']) {
+      TestBed.inject(HttpClient).get(route).subscribe();
+      const request=http.expectOne('/api'+route);expect(request.request.withCredentials).toBeTrue();request.flush({});
+    }
+  });
   it('hydrates only the server session and sends credentials',()=>{
     expect(auth.isLoggedIn()).toBeFalse();
     auth.refresh().subscribe();const request=http.expectOne('/api/auth/me');

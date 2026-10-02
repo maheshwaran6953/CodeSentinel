@@ -1,7 +1,7 @@
 require('reflect-metadata');
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const {readFileSync}=require('node:fs');
+const {readFileSync,readdirSync}=require('node:fs');
 const {PGlite}=require('@electric-sql/pglite');
 const {pgcrypto}=require('@electric-sql/pglite/contrib/pgcrypto');
 const {NotificationsController,sendReminders}=require('../dist/notifications');
@@ -10,10 +10,11 @@ const {workflow}=require('./workflow.cjs');
 async function setup(run) {
  const pg=new PGlite({extensions:{pgcrypto}});
  try {
-  for(const f of ['001_initial.sql','002_durable_notifications.sql','003_groq_capacity.sql'])await pg.exec(readFileSync('migrations/'+f,'utf8'));
+  for(const f of readdirSync('migrations').filter(f=>f.endsWith('.sql')).sort())await pg.exec(readFileSync('migrations/'+f,'utf8'));
   const adapter=x=>({query:async(sql,args=[]) => (await x.query(sql,args)).rows});
   const db={...adapter(pg),source:{transaction:fn=>pg.transaction(tx=>fn(adapter(tx)))}};
   const [a,b,f]=await db.query("INSERT INTO users(name,role) VALUES ('A','student'),('B','student'),('F','faculty') RETURNING *");
+  await db.query('INSERT INTO legacy_faculty(faculty_id) VALUES ($1)',[f.id]);
   const [r]=await db.query("INSERT INTO repositories(github_id,student_id,installation_id,owner,name,full_name,default_branch,url) VALUES ('1',$1,'1','owner','repo','owner/repo','main','https://github.com/owner/repo') RETURNING *",[a.id]);
   const [c]=await db.query("INSERT INTO commits(repository_id,student_id,sha) VALUES ($1,$2,$3) RETURNING *",[r.id,a.id,'a'.repeat(40)]);
   await run({db,pg,a,b,f,r,c,api:new NotificationsController(db)});

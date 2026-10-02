@@ -8,12 +8,12 @@ class InboxQuery {
   @IsOptional() @IsString() @MaxLength(300) cursor?: string;
 }
 class ReadThroughDto { @IsISO8601() before!: string; }
-const titles:Record<string,string>={repository_linked:'Repository linked',repository_restored:'Repository access restored',repository_access_removed:'Repository access removed',commit_received:'Commit received',analysis_completed:'Analysis completed',analysis_partial:'Analysis partially completed',analysis_failed:'Analysis needs attention',analysis_excluded:'Commit excluded from individual analysis',discussion_requested:'Technical discussion requested',discussion_generation_failed:'Question generation needs attention',discussion_context_unavailable:'Discussion context unavailable',discussion_ready:'Technical questions ready',discussion_completed:'Technical discussion completed',answer_submitted:'Answer submitted',grading_completed:'Answer grading completed',grading_failed:'Grading needs attention',faculty_review_recorded:'Faculty review recorded',student_reminder:'Reminder: technical discussion awaiting your response',faculty_reminder:'Reminder: completed discussion awaiting review'};
+const titles:Record<string,string>={roster_claimed:'Student account verification requested',roster_verified:'Student account verified',roster_rejected:'Account verification needs attention',team_invited:'Team invitation',team_joined:'Team invitation accepted',team_member_removed:'Team membership updated',team_approved:'Project team approved',guide_assigned:'Project guide assigned',team_updated:'Project team updated',repository_linked:'Repository linked',repository_restored:'Repository access restored',repository_access_removed:'Repository access removed',commit_received:'Commit received',analysis_completed:'Analysis completed',analysis_partial:'Analysis partially completed',analysis_failed:'Analysis needs attention',analysis_excluded:'Commit excluded from individual analysis',discussion_requested:'Technical discussion requested',discussion_generation_failed:'Question generation needs attention',discussion_context_unavailable:'Discussion context unavailable',discussion_ready:'Technical questions ready',discussion_completed:'Technical discussion completed',answer_submitted:'Answer submitted',grading_completed:'Answer grading completed',grading_failed:'Grading needs attention',faculty_review_recorded:'Faculty review recorded',student_reminder:'Reminder: technical discussion awaiting your response',faculty_reminder:'Reminder: completed discussion awaiting review'};
 const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 @Controller('notifications') @Roles('student','faculty')
 export class NotificationsController {
   constructor(private db: Database) {}
-  @Get('count') async count(@Req() req:AuthRequest) {const [row]=await this.db.query('SELECT count(*)::int AS unread FROM notification_recipients n JOIN notification_events e ON e.id=n.event_id WHERE n.user_id=$1 AND n.read_at IS NULL AND ($2::boolean OR e.student_id=$1)',[req.user.id,req.user.role==='faculty']);return {unreadCount:row.unread};}
+  @Get('count') async count(@Req() req:AuthRequest) {const [row]=await this.db.query('SELECT count(*)::int AS unread FROM notification_recipients n JOIN notification_events e ON e.id=n.event_id WHERE n.user_id=$1 AND n.read_at IS NULL AND notification_visible(e.id,$1)',[req.user.id]);return {unreadCount:row.unread};}
   // Rolling-deployment compatibility for the previous frontend.
   @Get() async legacy(@Req() req:AuthRequest) {return (await this.list(req,{})).items;}
   @Get('inbox') async list(@Req() req:AuthRequest,@Query() query:InboxQuery={}) {
@@ -23,27 +23,28 @@ export class NotificationsController {
       catch {throw new BadRequestException('Invalid notification cursor');}
     }
     const unread=query.filter==='unread';
-    const [counts]=await this.db.query(`SELECT count(*) FILTER(WHERE read_at IS NULL)::int AS unread,clock_timestamp() AS now FROM notification_recipients n JOIN notification_events e ON e.id=n.event_id WHERE n.user_id=$1 AND ($2::boolean OR e.student_id=$1)`,[req.user.id,req.user.role==='faculty']);
-    const rows=await this.db.query(`SELECT e.*,n.read_at,r.full_name,u.name AS student_name,q.ordinal
+    const [counts]=await this.db.query(`SELECT count(*) FILTER(WHERE read_at IS NULL)::int AS unread,clock_timestamp() AS now FROM notification_recipients n JOIN notification_events e ON e.id=n.event_id WHERE n.user_id=$1 AND notification_visible(e.id,$1)`,[req.user.id]);
+    const rows=await this.db.query(`SELECT e.*,n.read_at,r.full_name,u.name AS student_name,q.ordinal,cl.department,cl.section,cl.graduation_year,t.name AS team_name
       FROM notification_recipients n JOIN notification_events e ON e.id=n.event_id
-      JOIN repositories r ON r.id=e.repository_id JOIN users u ON u.id=e.student_id
+      LEFT JOIN repositories r ON r.id=e.repository_id LEFT JOIN users u ON u.id=e.student_id
+      LEFT JOIN project_classes cl ON cl.id=e.class_id LEFT JOIN project_teams t ON t.id=e.team_id
       LEFT JOIN questions q ON q.id=e.question_id
-      WHERE n.user_id=$1 AND ($5::boolean OR e.student_id=$1) AND (NOT $2::boolean OR n.read_at IS NULL)
+      WHERE n.user_id=$1 AND notification_visible(e.id,$1) AND (NOT $2::boolean OR n.read_at IS NULL)
       AND ($3::timestamptz IS NULL OR (e.created_at,e.id)<($3::timestamptz,$4::uuid))
-      ORDER BY e.created_at DESC,e.id DESC LIMIT 31`,[req.user.id,unread,cursor?.at || null,cursor?.id || null,req.user.role==='faculty']);
+      ORDER BY e.created_at DESC,e.id DESC LIMIT 31`,[req.user.id,unread,cursor?.at || null,cursor?.id || null]);
     const page=rows.slice(0,30),last=page[page.length-1],faculty=req.user.role==='faculty';
     return {unreadCount:counts.unread,asOf:new Date(counts.now).toISOString(),nextCursor:rows.length>30?Buffer.from(JSON.stringify({at:new Date(last.created_at).toISOString(),id:last.id})).toString('base64url'):null,
-      items:page.map(r=>({id:r.id,kind:r.kind,title:(titles[r.kind] || 'Project update')+(r.ordinal!==null?` (question ${r.ordinal+1})`:''),context:faculty?`${r.student_name} · ${r.full_name}`:r.full_name,
-        occurredAt:r.created_at,readAt:r.read_at,path:faculty?'/faculty/cohort':r.quiz_id?'/student/quiz-interrogation':r.commit_id?'/student/dashboard':'/student/repository-linking',
-        commitId:r.commit_id,quizId:r.quiz_id,questionId:r.question_id,studentId:faculty?r.student_id:undefined}))};
+      items:page.map(r=>({id:r.id,kind:r.kind,title:(titles[r.kind] || 'Project update')+(r.ordinal!=null?` (question ${r.ordinal+1})`:''),context:faculty?`${r.student_name} · ${r.full_name}`:r.full_name,
+        occurredAt:r.created_at,readAt:r.read_at,path:!r.repository_id?(faculty?'/faculty/classes':'/student/team'):faculty?'/faculty/cohort':r.quiz_id?'/student/quiz-interrogation':r.commit_id?'/student/dashboard':'/student/repository-linking',
+        classId:r.repository_id?undefined:r.class_id,teamId:r.repository_id?undefined:r.team_id,commitId:r.commit_id,quizId:r.quiz_id,questionId:r.question_id,studentId:faculty?r.student_id:undefined}))};
   }
   @Post('read-all') async readAll(@Req() req:AuthRequest,@Body() body:ReadThroughDto) {
     await this.db.query(`UPDATE notification_recipients n SET read_at=clock_timestamp() FROM notification_events e
-      WHERE e.id=n.event_id AND n.user_id=$1 AND n.read_at IS NULL AND e.created_at<=$2::timestamptz AND ($3::boolean OR e.student_id=$1)`,[req.user.id,body.before,req.user.role==='faculty']);
+      WHERE e.id=n.event_id AND n.user_id=$1 AND n.read_at IS NULL AND e.created_at<=$2::timestamptz AND notification_visible(e.id,$1)`,[req.user.id,body.before]);
     return {saved:true};
   }
   @Post(':id/read') async read(@Req() req:AuthRequest,@Param('id',ParseUUIDPipe) id:string) {
-    const rows=await this.db.query('UPDATE notification_recipients n SET read_at=coalesce(n.read_at,clock_timestamp()) FROM notification_events e WHERE n.event_id=e.id AND n.user_id=$1 AND n.event_id=$2 AND ($3::boolean OR e.student_id=$1) RETURNING n.read_at',[req.user.id,id,req.user.role==='faculty']);
+    const rows=await this.db.query('UPDATE notification_recipients n SET read_at=coalesce(n.read_at,clock_timestamp()) FROM notification_events e WHERE n.event_id=e.id AND n.user_id=$1 AND n.event_id=$2 AND notification_visible(e.id,$1) RETURNING n.read_at',[req.user.id,id]);
     if(!rows.length)throw new NotFoundException('Notification not found');return {readAt:rows[0].read_at};
   }
 }

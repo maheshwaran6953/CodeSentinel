@@ -22,6 +22,9 @@
       <div class="step-header">
         <span class="step-label">Step 1 of 3: Select Repository</span>
         <h2 class="step-title">Select Your Repository</h2>
+        <p><a routerLink="/student/team">Manage your class and project team</a></p>
+        <label *ngIf="teams.length">Project team <select [(ngModel)]="teamId"><option value="">Choose approved team</option><option *ngFor="let team of teams" [value]="team.id">{{team.name}} · {{team.project_title}}</option></select></label>
+        <p *ngIf="enrolled&&!teams.length">Only the accepted lead of an advisor-approved team can link its repository. Visit your team workspace to complete setup.</p>
         <p class="step-desc">Choose the repository you want to link for automated code analysis and policy enforcement.</p>
         <button class="btn-secondary" (click)="auth.installApp()">Install / configure GitHub App access</button>
         <button class="btn-secondary" (click)="loadRepositories()">Refresh repositories</button>
@@ -143,7 +146,7 @@
     <div class="bottom-action-bar">
       <div class="action-btn-group">
         <button (click)="cancel()" class="btn-secondary">Cancel</button>
-        <button (click)="proceedToReview()" class="btn-primary" [disabled]="!selectedRepository">Next</button>
+        <button (click)="proceedToReview()" class="btn-primary" [disabled]="!selectedRepository||!teamContextReady||(enrolled&&!teamId)">Next</button>
       </div>
     </div>
   </main>

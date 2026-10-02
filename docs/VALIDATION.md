@@ -413,3 +413,22 @@ Production acceptance: runtime commit 97887e3 is deployed to Render and Vercel. 
 The existing browser tab initially reported a generic faculty sign-in failure. Public readiness, login-route validation and credentialed CORS passed. Reloading the tab from the previous frontend bundle restored faculty login and cohort access with the user-entered credentials; no account, password or security setting was changed. The precise cause of the transient old-tab failure was not established and is not represented as a code fix.
 
 Authenticated production browser acceptance confirmed the faculty capacity panel displays the actual observed model, two observed requests, 4,417 reported usage tokens, provider request/token limits and reset timestamps, plus the organization-wide/stale-observation limitations. No additional Groq request was made to display the panel. Shared Groq capacity release: VERIFIED LIVE for provider calls, persisted cache reuse, deployed recovery scheduling and faculty display. Actual quota exhaustion and queued-answer recovery remain covered by automated tests rather than intentionally exhausting live capacity or inserting artificial production work.
+
+## Classes and team attribution — 2026-10-02
+
+Requested scope: fourth-year IT section B, graduating in 2027, initial maximum team size two. The supplied roster contains 60 students and is not a team allocation. No classmates, accounts, guides or team pairings are fabricated. Other sections can be added through the same workflow when their real details are available.
+
+Implemented migrations 004/005, roster import/edit and verified account claims, advisor-created or student-proposed teams, reserved invitation slots, acceptance, advisor approval, configurable capacity, optional guide assignment, member/lead changes and administrative audit. Existing evidence is retained. Shared repositories resolve each commit's GitHub author to verified accepted members; individual baselines remain separate and unknown/shared authorship abstains. Faculty endpoint aggregates and drilldowns, writes and durable notification reads enforce current advisor/guide scope.
+
+Local validation: 42 backend tests pass, including transactional roster import, competing identity claims, team capacity, advisor/guide separation, per-author mixed pushes, unknown authors, private quiz notifications and guide access revocation. Frontend production build and 46 ChromeHeadless tests pass. The existing initial bundle warning remains (587.12 kB vs 500 kB warning threshold). The subsequent lead-refresh regression was also tested separately. Hosted migration, rollout and real roster import are pending at this entry.
+
+### Remaining work register
+
+- Complete hosted class/team rollout and authenticated roster import/visual acceptance.
+- Actual team pairings, project titles and guide accounts must come from the class; absence of these is not filled with generated records. Real two-member repository acceptance requires a second actual student's GitHub login and invitation acceptance.
+- Preserve earlier deferred live checks: GitHub pull-request delivery, webhook redelivery/deduplication, non-allowlisted faculty rejection and live immutable-answer retry. Automated checks are not labelled live provider acceptance.
+- Team-scoped API/notification isolation is tested with isolated accounts locally; a second real guide login is needed for browser acceptance after real guide setup.
+- Existing exclusions are not automatically rewritten after a late membership claim. Fine-grained ownership of shared-file snapshots remains a scientific limitation; counts are not effort grades.
+- Consented labelled-history validation and calibration remain separate future scientific work. Email/SMS/browser push and automated GitHub write-permission invitations are not implemented or claimed.
+
+Core evidence/review demo remains verified. The expanded class/team release is not yet claimed complete or verified live in this entry.

@@ -33,4 +33,9 @@ describe('Durable notification inbox',()=>{
     const f=TestBed.createComponent(NotificationsComponent);f.detectChanges();const req=http.expectOne('/notifications/inbox?filter=all');users.next(null);
     expect(req.cancelled).toBeTrue();expect(f.componentInstance.items).toEqual([]);expect(f.componentInstance.unread).toBe(0);f.destroy();http.verify();
   });
+  it('opens academic notifications at their class and team instead of a student evidence page',()=>{
+    const f=start();const academic={...f.componentInstance.items[0],path:'/faculty/classes',classId:'class-1',teamId:'team-1',studentId:'student-1'};
+    f.componentInstance.open(academic);http.expectOne('/notifications/event-1/read').flush({readAt:'2026-10-02T00:00:00Z'});
+    expect(router.navigate).toHaveBeenCalledWith(['/faculty/classes'],{queryParams:{classId:'class-1',teamId:'team-1'}});f.destroy();http.verify();
+  });
 });

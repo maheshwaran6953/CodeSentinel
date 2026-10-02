@@ -7,7 +7,7 @@ import { Stylometry, excluded, supported } from './stylometry';
 import { combine, velocity, Metrics } from './scoring';
 import { QuizController } from './quiz';
 import { Llm } from './llm';
-import { ancestorHistory, evidenceSummary } from './evidence';
+import { ancestorHistory, continuity, evidenceSummary } from './evidence';
 import { sendReminders } from './notifications';
 
 @Injectable()
@@ -44,7 +44,7 @@ export class Analysis implements OnModuleInit, OnModuleDestroy {
     }
     for (const [index, commit] of commits.entries()) {
       const [saved] = await this.db.query(`INSERT INTO commits(repository_id,student_id,sha) VALUES ($1,$2,$3)
-        ON CONFLICT(repository_id,sha) DO UPDATE SET sha=excluded.sha RETURNING id,status`, [repo.id,repo.student_id,commit.sha]);
+        ON CONFLICT(repository_id,sha) DO UPDATE SET sha=excluded.sha RETURNING id,status`, [repo.id,repo.team_id ? null : repo.student_id,commit.sha]);
       if (saved.status === 'excluded') continue;
       if (saved.status !== 'completed') await this.db.query(`UPDATE commits SET signals=coalesce(signals,'{}'::jsonb) || $2::jsonb WHERE id=$1`,
         [saved.id,JSON.stringify({developmentEvent:{kind:job.name,before:job.data.before || null,after:job.data.after || null,index:index+1,commitCount:commits.length}})]);
@@ -76,13 +76,22 @@ export class Analysis implements OnModuleInit, OnModuleDestroy {
       const waitingParents = await this.db.query(`SELECT sha FROM commits WHERE repository_id=$1 AND sha=ANY($2::text[]) AND status NOT IN ('completed','partial','excluded')`,[repo.id,(data.parents || []).map((p: any)=>p.sha).filter(Boolean)]);
       if (waitingParents.length) throw new Error('Earlier commit analysis must complete first');
       const authorId = data.author?.id ? String(data.author.id) : null;
-      const authored = authorId === repo.student_github_id;
+      let studentId: string | null = authorId && authorId === String(repo.student_github_id) ? repo.student_id : null;
+      let membership: any = null;
+      if (repo.team_id) {
+        const members = authorId ? await this.db.query(`SELECT r.user_id,m.id AS membership_id,m.joined_at,m.status FROM team_members m
+          JOIN roster_students r ON r.id=m.roster_id JOIN users u ON u.id=r.user_id
+          WHERE m.team_id=$1 AND m.status='accepted' AND u.github_id=$2`,[repo.team_id,authorId]) : [];
+        studentId = members.length===1 ? members[0].user_id : null;
+        membership = members.length===1 ? members[0] : null;
+      }
+      const authored = !!studentId;
       const merge = data.parents?.length>1 || /Co-authored-by:/i.test(data.commit.message);
       const committedAt = new Date(data.commit.committer.date);
       await this.db.query(`UPDATE commits SET author=$2,author_github_id=$3,message=$4,committed_at=$5,
-        additions=$6,deletions=$7,changed_files=$8,signals=coalesce(signals,'{}'::jsonb) || $9::jsonb WHERE id=$1`,[record.id,data.commit.author.name,authorId,data.commit.message,committedAt,data.stats.additions,data.stats.deletions,files.length,JSON.stringify({developmentEvent:{...record.signals?.developmentEvent,parents:(data.parents || []).map((p: any)=>p.sha)}})]);
+        additions=$6,deletions=$7,changed_files=$8,signals=coalesce(signals,'{}'::jsonb) || $9::jsonb,student_id=$10 WHERE id=$1`,[record.id,data.commit.author.name,authorId,data.commit.message,committedAt,data.stats.additions,data.stats.deletions,files.length,JSON.stringify({developmentEvent:{...record.signals?.developmentEvent,parents:(data.parents || []).map((p: any)=>p.sha)},attribution:{status:!authored ? 'unattributed' : merge ? 'shared_or_merge' : 'github_identity_matched',teamId:repo.team_id || null,studentId,membership,checkedAt:new Date().toISOString(),source:'GitHub commit author account; never the pusher',limitation:'Git metadata does not prove who physically wrote code. Current accepted membership identifies the account; it does not establish membership at the historical commit date.'}}),studentId]);
       if (!authored || merge) {
-        await this.db.query("UPDATE commits SET status='excluded',reasons=$2,analyzed_at=now() WHERE id=$1",[record.id,JSON.stringify([!authored ? 'Commit author does not match the linked student GitHub identity' : 'Merge or co-authored commit: excluded from individual authorship assessment'])]);
+        await this.db.query("UPDATE commits SET status='excluded',reasons=$2,analyzed_at=now() WHERE id=$1",[record.id,JSON.stringify([!authored ? (repo.team_id ? 'Commit author does not match a verified, accepted team member; attribution remains unknown' : 'Commit author does not match the linked student GitHub identity') : 'Merge or co-authored commit: excluded from individual authorship assessment'])]);
         return;
       }
       let gitignore = '';
@@ -109,7 +118,7 @@ export class Analysis implements OnModuleInit, OnModuleDestroy {
       if (sources.length>=60) notes.push('AST analysis limited to 60 changed source files');
       if (files.length>=3000) notes.push('GitHub commit file listing reached the 3000-file API limit');
       const own = await this.db.query(`SELECT committed_at,velocity FROM commits WHERE student_id=$1 AND committed_at<$2
-        AND status IN ('completed','partial') AND velocity IS NOT NULL ORDER BY committed_at DESC LIMIT 30`,[repo.student_id,committedAt]);
+        AND status IN ('completed','partial') AND velocity IS NOT NULL ORDER BY committed_at DESC LIMIT 30`,[studentId,committedAt]);
       const measured = evidence.filter(f=>!f.excluded && f.supported);
       if (!measured.length) {
         await this.db.query("UPDATE commits SET status='excluded',files=$2,reasons=$3,analyzed_at=now() WHERE id=$1",
@@ -120,13 +129,15 @@ export class Analysis implements OnModuleInit, OnModuleDestroy {
         files: measured.length, gapHours: own.length ? (committedAt.getTime()-new Date(own[0].committed_at).getTime())/3600000 : null };
       const speed = velocity(metrics,own.map(h=>h.velocity.metrics),Number(process.env.VELOCITY_Z_THRESHOLD || 3));
       const candidates = await this.db.query(`SELECT student_id,repository_id,sha,status,committed_at,features,stylometry,files,velocity,signals->'developmentEvent'->'parents' AS parents
-        FROM commits WHERE repository_id=$1 AND student_id=$2 AND id<>$3
+        FROM commits WHERE repository_id=$1 AND id<>$2
         AND status IN ('completed','partial','excluded')
-        ORDER BY analyzed_at DESC LIMIT 100`,[repo.id,repo.student_id,record.id]);
+        ORDER BY analyzed_at DESC LIMIT 100`,[repo.id,record.id]);
       const history = ancestorHistory(candidates,data.parents?.length===1 ? data.parents[0].sha : undefined);
-      const astHistory = history.map(h=>({...h,artifacts:h.stylometry?.files || []}));
+      const repositoryHistory: any[] = history.map(h=>({...h,artifacts:h.stylometry?.files || []}));
+      // Traverse intervening teammate commits before selecting personal baseline observations.
+      const astHistory = repositoryHistory.filter(h=>h.student_id===studentId && h.status!=='excluded');
       let style: any;
-      try { style = await this.ast.analyze({ studentId: repo.student_id,files: sources,history:astHistory }); }
+      try { style = await this.ast.analyze({ studentId,files: sources,history:astHistory }); }
       catch { style = { risk: null, flagged: false, maturity: 'unavailable', error: 'AST/ML unavailable; faculty may retry analysis', features: {} }; notes.push(style.error); }
       if (style.files?.some((f: any)=>f.symbolLimitReached)) notes.push('Function/class extraction limit reached; granular coverage is incomplete');
       if (style.files?.some((f: any)=>f.status==='parse_error')) notes.push('Some changed source files contain tree-sitter parse errors');
@@ -136,11 +147,18 @@ export class Analysis implements OnModuleInit, OnModuleDestroy {
         WHERE z.commit_id=$1 AND z.status='completed'`,[record.id]);
       const score = combine(speed.risk,style.risk,completedQuiz?.score ?? null);
       const assessment = evidenceSummary(astHistory,style,speed,evidence,(data.parents || []).map((p: any)=>p.sha),completedQuiz?.score ?? null,notes);
+      if (repo.team_id) {
+        // Shared architecture is context, never another student's personal baseline.
+        const shared = continuity(repositoryHistory,style,evidence,(data.parents || []).map((p: any)=>p.sha));
+        Object.assign(assessment,{teamContinuity:{...shared,scope:'Observed team repository history; individual review gates remain based on personal evidence'}});
+        assessment.uncertainty.limitations.push('Changed file snapshots may include teammates’ earlier code; they do not establish line-level authorship.');
+      }
       style.maturity = assessment.baseline.status;
       const reasons = assessment.reasons;
       const flagged = assessment.reviewRequested;
       const envelope = {...record.signals,...score,riskScore:null,authenticityScore:null,version:'2.0',
         interpretation:'Raw legacy signal transforms are internal diagnostics, not authorship probabilities',
+        attribution:{status:'github_identity_matched',teamId:repo.team_id || null,studentId,membership,checkedAt:new Date().toISOString(),source:'GitHub commit author account; never the pusher',limitation:'Git metadata does not prove who physically wrote code. Current accepted membership does not establish membership at the historical commit date.'},
         developmentEvent:{...record.signals?.developmentEvent,parents:(data.parents || []).map((p: any)=>p.sha)},evidence:assessment};
       const hasQuiz = (await this.db.query('SELECT id FROM quizzes WHERE commit_id=$1',[record.id])).length>0;
       const quizStatus = hasQuiz ? 'generated' : flagged ? (diff.trim() ? 'pending' : 'no_diff') : 'not_required';
@@ -163,12 +181,12 @@ export class Analysis implements OnModuleInit, OnModuleDestroy {
       try {await new QuizController(this.db,this.llm).answer(r.question_id,{user:{id:r.student_id}} as any,{answerText:r.answer_text});}
       catch { /* Saved status and retry timing are authoritative; continue other work. */ }
     }
-    const commits=await this.db.query("SELECT id FROM commits WHERE quiz_status='pending' AND quiz_retry_at<=now() ORDER BY quiz_retry_at LIMIT 10");
+    const commits=await this.db.query("SELECT id FROM commits WHERE student_id IS NOT NULL AND quiz_status='pending' AND quiz_retry_at<=now() ORDER BY quiz_retry_at LIMIT 10");
     for(const c of commits) {try {await this.generateQuiz(c.id);}catch { /* Persisted retry state remains visible. */ }}
   }
   async generateQuiz(commitId: string) {
     const [commit] = await this.db.query('SELECT * FROM commits WHERE id=$1',[commitId]);
-    if (!commit || (!commit.flagged && !commit.signals?.discussionRequested) || !commit.diff) return;
+    if (!commit || !commit.student_id || (!commit.flagged && !commit.signals?.discussionRequested) || !commit.diff) return;
     if ((await this.db.query('SELECT id FROM quizzes WHERE commit_id=$1',[commitId])).length) return;
     if(commit.quiz_attempts>=5) {await this.db.query("UPDATE commits SET quiz_status='failed',quiz_retry_at=null WHERE id=$1",[commit.id]);return;}
     if(commit.quiz_retry_at && new Date(commit.quiz_retry_at).getTime()>Date.now())return;
