@@ -449,4 +449,6 @@ A reproduced UI defect labelled an expired login session as a webhook installati
 
 All eight Python tests also pass, including real XGBoost training/reload using test-only synthetic histories. The first local runs stalled in the training test; the successful isolated rerun bounded OpenMP/OpenBLAS threads to one for the test process only. No runtime ML configuration or prediction logic was changed.
 
+Deployment acceptance: `f20b990` was published to the existing deployment branches. The public frontend serves `main.ff4f53f92a2c6194.js` with the session-expiry recovery, and backend readiness returns HTTP 200. The real push of this fix to the linked team repository was processed by the hosted pipeline: one completed, attributed, unflagged commit record with no quiz. This verifies the lead's real team push; it does not substitute for the second member's participation. The shared activity view displays actual imported commits and GitHub links.
+
 Remaining participant-dependent acceptance: the second student's independent onboarding and real two-author project push; an actual assigned guide account for browser access-isolation verification. Existing deferred secondary and scientific checks above remain explicit. Repository history sync is not represented as proof of a new team webhook delivery or a second member's participation.
