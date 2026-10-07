@@ -335,13 +335,14 @@
           </svg>
         </div>
 
-        <h1 class="error-title">Webhook Installation Failed</h1>
+        <h1 class="error-title">{{ webhookStatus?.errorCode === 'ERR_SESSION_EXPIRED' ? 'Sign in to continue' : 'Repository Linking Failed' }}</h1>
         <p class="error-desc">{{ webhookStatus?.message }}</p>
         <p class="error-detail" *ngIf="webhookStatus?.errorMessage">{{ webhookStatus?.errorMessage }}</p>
 
         <div class="action-btn-group error-actions">
           <button (click)="goBackFromLinking()" class="btn-secondary">Back</button>
-          <button (click)="retryWebhookRegistration()" class="btn-primary">Retry Registration</button>
+          <button *ngIf="webhookStatus?.errorCode === 'ERR_SESSION_EXPIRED'; else retryLink" (click)="signInAgain()" class="btn-primary">Sign in again</button>
+          <ng-template #retryLink><button (click)="retryWebhookRegistration()" class="btn-primary">Retry Registration</button></ng-template>
         </div>
       </div>
     </div>

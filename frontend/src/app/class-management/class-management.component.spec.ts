@@ -17,6 +17,19 @@ describe('Roster import validation',()=>{
 });
 describe('Faculty class administration',()=>{
   beforeEach(async()=>{await TestBed.configureTestingModule({imports:[ClassManagementComponent,HttpClientTestingModule,RouterTestingModule]}).compileComponents();});
+  it('keeps the selected class visible after saving and refreshing its options',fakeAsync(()=>{
+    const fixture=TestBed.createComponent(ClassManagementComponent),c=fixture.componentInstance,http=TestBed.inject(HttpTestingController);
+    const cls={id:'class-1',department:'IT',section:'B',graduation_year:2027,can_manage:true};
+    fixture.detectChanges();http.expectOne('/classes').flush({classes:[cls],faculty:[]});flushMicrotasks();fixture.detectChanges();
+    const select:HTMLSelectElement=fixture.nativeElement.querySelector('.toolbar select');
+    select.value='class-1';select.dispatchEvent(new Event('change'));flushMicrotasks();
+    http.expectOne('/classes/class-1').flush({class:{...cls,team_member_limit:2},roster:[],teams:[],claims:[],faculty:[]});flushMicrotasks();fixture.detectChanges();flushMicrotasks();
+    void c.saveLimit();fixture.detectChanges();http.expectOne('/classes/class-1/settings').flush({saved:true});flushMicrotasks();
+    http.expectOne('/classes').flush({classes:[{...cls}],faculty:[]});flushMicrotasks();fixture.detectChanges();flushMicrotasks();
+    http.expectOne('/classes/class-1').flush({class:{...cls,team_member_limit:2},roster:[],teams:[],claims:[],faculty:[]});flushMicrotasks();fixture.detectChanges();flushMicrotasks();
+    expect(c.selectedId).toBe('class-1');expect(select.selectedOptions[0]?.textContent).toContain('IT');
+    http.verify();fixture.destroy();
+  }));
   it('previews locally and sends only reviewed student rows on explicit save',fakeAsync(()=>{
     const fixture=TestBed.createComponent(ClassManagementComponent),c=fixture.componentInstance,http=TestBed.inject(HttpTestingController);
     const classes=[{id:'class-1',department:'IT',section:'B',graduation_year:2027,can_manage:true}];

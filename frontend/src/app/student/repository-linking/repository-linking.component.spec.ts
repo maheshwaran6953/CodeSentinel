@@ -127,4 +127,22 @@ describe('RepositoryLinkingComponent', () => {
     component.cancel();
     expect(mockRouter.navigate).toHaveBeenCalledWith(['/student/dashboard']);
   });
+
+  it('offers fresh sign-in instead of retrying a link with an expired session', () => {
+    mockRepositoryService.registerWebhook.and.returnValue(throwError(() => ({status:401,error:{message:'Please sign in'}})));
+    component.proceedToLinking();fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Your session has expired.');
+    expect(fixture.nativeElement.textContent).not.toContain('Retry Registration');
+    const button=Array.from(fixture.nativeElement.querySelectorAll('button')).find((b:any)=>b.textContent.trim()==='Sign in again') as HTMLButtonElement;
+    button.click();expect(mockRouter.navigate).toHaveBeenCalledWith(['/login']);
+    expect(mockStudentService.updateLinkedRepository).not.toHaveBeenCalled();
+  });
+
+  it('keeps retry available for a non-session provider failure', () => {
+    mockRepositoryService.registerWebhook.and.returnValue(throwError(() => ({status:503,error:{message:'GitHub temporarily unavailable'}})));
+    component.proceedToLinking();fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('GitHub temporarily unavailable');
+    expect(fixture.nativeElement.textContent).toContain('Retry Registration');
+    expect(fixture.nativeElement.textContent).not.toContain('Your session has expired.');
+  });
 });

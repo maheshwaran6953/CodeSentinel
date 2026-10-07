@@ -199,9 +199,11 @@ export class RepositoryLinkingComponent implements OnInit, OnDestroy {
           }
           this.webhookStatus = {
             status: 'failed',
-            message: 'Webhook registration failed',
-            errorCode: 'ERR_WEBHOOK_INSTALL',
-            errorMessage: err.error?.message || 'GitHub API error'
+            message: err.status === 401 ? 'Your session has expired.' : 'Repository linking failed',
+            errorCode: err.status === 401 ? 'ERR_SESSION_EXPIRED' : 'ERR_WEBHOOK_INSTALL',
+            errorMessage: err.status === 401
+              ? 'Sign in again, then return to your team and link its repository.'
+              : err.error?.message || 'GitHub API error'
           };
           this.isLoading = false;
         }
@@ -235,6 +237,10 @@ export class RepositoryLinkingComponent implements OnInit, OnDestroy {
     this.webhookStatus = null;
     this.registrationProgress = 0;
     this.proceedToLinking();
+  }
+
+  signInAgain(): void {
+    this.router.navigate(['/login']);
   }
 
   /**
