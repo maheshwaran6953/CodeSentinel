@@ -23,7 +23,7 @@ flowchart LR
   L --> DB
   S --> R[Answer submission and Groq rubric grading]
   R --> DB
-  DB --> F[Faculty evidence / overrides]
+  DB --> F[Faculty evidence / Overrides]
 ```
 
 - **Frontend:** Angular 19, existing student dashboard/linking/quiz screens plus faculty cohort and evidence views.
