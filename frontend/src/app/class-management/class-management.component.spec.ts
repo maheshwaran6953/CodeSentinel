@@ -18,9 +18,12 @@ describe('Roster import validation',()=>{
 describe('Faculty class administration',()=>{
   beforeEach(async()=>{await TestBed.configureTestingModule({imports:[ClassManagementComponent,HttpClientTestingModule,RouterTestingModule]}).compileComponents();});
   it('counts verified links and accepted members independently of roster size and invitations',()=>{
-    const fixture=TestBed.createComponent(ClassManagementComponent),c=fixture.componentInstance;
-    c.detail={roster:[{id:'a',user_id:'account'},{id:'b',user_id:null},{id:'c',user_id:'other'}],claims:[{status:'pending'},{status:'approved'}],teams:[{members:[{roster_id:'a',status:'accepted'},{roster_id:'b',status:'invited'}]}]};
+    const fixture=TestBed.createComponent(ClassManagementComponent),c=fixture.componentInstance,http=TestBed.inject(HttpTestingController);
+    fixture.detectChanges();http.expectOne('/classes').flush({classes:[],faculty:[]});
+    c.detail={class:{department:'IT',can_manage:false,team_member_limit:2},roster:[{id:'a',user_id:'account'},{id:'b',user_id:null},{id:'c',user_id:'other'}],claims:[{status:'pending'},{status:'approved'}],teams:[{members:[{roster_id:'a',status:'accepted'},{roster_id:'b',status:'invited'}]}]};
     expect(c.linkedStudents).toBe(2);expect(c.acceptedStudents).toBe(1);expect(c.pendingClaims).toBe(1);expect(c.selectedSeats).toBe(0);
+    fixture.detectChanges();expect(Array.from(fixture.nativeElement.querySelectorAll('.summary-strip dd')).map((e:any)=>e.textContent.trim())).toEqual(['3','2','1','1']);
+    expect(fixture.nativeElement.textContent).not.toContain('\ufffd');http.verify();
     c.team.leadRosterId='a';expect(c.selectedSeats).toBe(1);fixture.destroy();
   });
   it('ignores failed requests for a class that is no longer selected',fakeAsync(()=>{
