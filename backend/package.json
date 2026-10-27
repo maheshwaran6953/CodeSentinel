@@ -10,7 +10,7 @@
     "start:dev": "ts-node src/main.ts",
     "typeorm": "typeorm-ts-node-esm",
     "migrate": "ts-node src/migrate.ts",
-    "test": "npm run build && node --test test/*.test.cjs"
+    "test": "npm run build && node --test --test-concurrency=1 test/*.test.cjs"
   },
   "dependencies": {
     "@nestjs/common": "^10.2.14",

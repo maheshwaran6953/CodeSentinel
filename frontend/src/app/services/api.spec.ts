@@ -1,4 +1,4 @@
-import { TestBed } from '@angular/core/testing';
+import { TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { HTTP_INTERCEPTORS, HttpClient } from '@angular/common/http';
 import { AuthService } from './auth.service';
@@ -7,6 +7,7 @@ import { QuizService } from './quiz.service';
 import { ApiInterceptor } from './api.interceptor';
 import { FacultyGuard } from '../guards/faculty.guard';
 import { Router, UrlTree } from '@angular/router';
+import { RecoveryService } from './recovery.service';
 
 describe('Authenticated API contracts',()=>{
   let http:HttpTestingController;let auth:AuthService;
@@ -56,4 +57,29 @@ describe('Authenticated API contracts',()=>{
     const request=http.expectOne('/api/repositories/link');expect(request.request.body).toEqual({repositoryId:'42'});
     request.flush({status:'completed',message:'Authorized'});
   });
+  it('expires a known session, clears its identity and never replays a rejected mutation',()=>{
+    auth.refresh().subscribe();http.expectOne('/api/auth/me').flush({id:'s',role:'student'});
+    const client=TestBed.inject(HttpClient),recovery=TestBed.inject(RecoveryService);
+    client.post('/classes/claim',{registerNumber:'001'}).subscribe({error:()=>{}});
+    http.expectOne('/api/classes/claim').flush({message:'Please sign in'},{status:401,statusText:'Unauthorized'});
+    expect(auth.isLoggedIn()).toBeFalse();expect(recovery.expired$.value).toBeTrue();
+    client.get('/teams/me').subscribe({error:()=>{}});http.expectNone('/api/teams/me');
+    auth.refresh().subscribe();http.expectOne('/api/auth/me').flush({id:'s',role:'student'});
+    client.get('/teams/me').subscribe();http.expectOne('/api/teams/me').flush({});
+    expect(recovery.expired$.value).toBeFalse();http.expectNone('/api/classes/claim');
+  });
+  it('does not treat rejected faculty credentials or forbidden access as session expiry',()=>{
+    auth.refresh().subscribe();http.expectOne('/api/auth/me').flush({id:'s',role:'student'});
+    auth.loginFacultyReal('test@example.edu','test-only').subscribe({error:()=>{}});
+    http.expectOne('/api/auth/login').flush({}, {status:401,statusText:'Unauthorized'});
+    TestBed.inject(HttpClient).get('/faculty/students').subscribe({error:()=>{}});
+    http.expectOne('/api/faculty/students').flush({}, {status:403,statusText:'Forbidden'});
+    expect(TestBed.inject(RecoveryService).expired$.value).toBeFalse();expect(auth.isStudent()).toBeTrue();
+  });
+  it('bounds read loading and reports unavailable service without retrying the request',fakeAsync(()=>{
+    TestBed.inject(HttpClient).get('/teams/me').subscribe({error:()=>{}});
+    const request=http.expectOne('/api/teams/me');tick(20001);
+    expect(request.cancelled).toBeTrue();expect(TestBed.inject(RecoveryService).unavailable).toBeTrue();
+    http.expectNone('/api/teams/me');
+  }));
 });

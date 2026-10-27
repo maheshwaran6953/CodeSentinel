@@ -326,4 +326,4 @@ flex-shrink: 0;
     color: #0052cc;
     margin: 0;
 }
-}
+}.connection-status{margin:20px 24px 0;padding:14px 16px;border-radius:8px;background:#edf4ff;border:1px solid #c6d9f7;color:#1e4378;font-size:13px;line-height:1.5}.connection-status p{margin:6px 0 0}.account-hint{font-size:12px;line-height:1.6;color:#536177;margin:16px 0 0;padding-top:14px;border-top:1px solid #e5e7eb}button:disabled{opacity:.6;cursor:wait}button:focus-visible,a:focus-visible{outline:3px solid #3885ef;outline-offset:3px}.form-panel,.branding-panel{box-sizing:border-box;min-width:0}.login-card{box-sizing:border-box}

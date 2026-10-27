@@ -17,6 +17,25 @@ describe('Roster import validation',()=>{
 });
 describe('Faculty class administration',()=>{
   beforeEach(async()=>{await TestBed.configureTestingModule({imports:[ClassManagementComponent,HttpClientTestingModule,RouterTestingModule]}).compileComponents();});
+  it('counts verified links and accepted members independently of roster size and invitations',()=>{
+    const fixture=TestBed.createComponent(ClassManagementComponent),c=fixture.componentInstance;
+    c.detail={roster:[{id:'a',user_id:'account'},{id:'b',user_id:null},{id:'c',user_id:'other'}],claims:[{status:'pending'},{status:'approved'}],teams:[{members:[{roster_id:'a',status:'accepted'},{roster_id:'b',status:'invited'}]}]};
+    expect(c.linkedStudents).toBe(2);expect(c.acceptedStudents).toBe(1);expect(c.pendingClaims).toBe(1);expect(c.selectedSeats).toBe(0);
+    c.team.leadRosterId='a';expect(c.selectedSeats).toBe(1);fixture.destroy();
+  });
+  it('ignores failed requests for a class that is no longer selected',fakeAsync(()=>{
+    const fixture=TestBed.createComponent(ClassManagementComponent),c=fixture.componentInstance,http=TestBed.inject(HttpTestingController);
+    void c.select('old');const old=http.expectOne('/classes/old');void c.select('new');
+    http.expectOne('/classes/new').flush({class:{id:'new',team_member_limit:2},roster:[],teams:[],claims:[],faculty:[]});flushMicrotasks();
+    old.flush({message:'Old class unavailable'},{status:404,statusText:'Not found'});flushMicrotasks();
+    expect(c.detail.class.id).toBe('new');expect(c.error).toBe('');expect(c.detailLoading).toBeFalse();fixture.destroy();http.verify();
+  }));
+  it('does not reopen closed activity or replace the newly selected team with an older response',fakeAsync(()=>{
+    const fixture=TestBed.createComponent(ClassManagementComponent),c=fixture.componentInstance,http=TestBed.inject(HttpTestingController);
+    void c.openTeam('old');const old=http.expectOne('/teams/old');void c.openTeam('new');http.expectOne('/teams/new').flush({team:{id:'new'}});flushMicrotasks();
+    old.flush({team:{id:'old'}});flushMicrotasks();expect(c.activity.team.id).toBe('new');
+    void c.openTeam('closed');c.closeActivity();http.expectOne('/teams/closed').flush({team:{id:'closed'}});flushMicrotasks();expect(c.activity).toBeNull();expect(c.activityLoading).toBeFalse();fixture.destroy();http.verify();
+  }));
   it('keeps the selected class visible after saving and refreshing its options',fakeAsync(()=>{
     const fixture=TestBed.createComponent(ClassManagementComponent),c=fixture.componentInstance,http=TestBed.inject(HttpTestingController);
     const cls={id:'class-1',department:'IT',section:'B',graduation_year:2027,can_manage:true};

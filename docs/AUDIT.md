@@ -78,8 +78,11 @@ All private POST requests require an exact matching FRONTEND_URL Origin.
 | GET /health, /health/ready | Public | Deployment liveness / DB and Redis readiness |
 
 No student-supplied user ID, role, installation ID, repository owner, score, rubric or
-grading result is trusted. Faculty is a deployment-wide cohort role, as there was no
-existing class/department assignment model. Multi-tenant faculty scoping is not claimed.
+grading result is trusted. Migrations 004/005 scope team evidence and notifications to
+the current class advisor or assigned guide. Legacy personal repository access is
+retained through explicit grants; new faculty receive no blanket legacy access.
+Students' own discussions and answers stay private from their teammates. Class and
+team APIs are implemented in classes.ts, with Angular class/team workspace routes.
 
 ## Evidence limitations / deliberate bounds
 
@@ -98,8 +101,10 @@ existing class/department assignment model. Multi-tenant faculty scoping is not 
   research limitations. This is evidence for human review, not automated discipline.
 - Baselines use observed history, not verified ground-truth authorship. Flagged history
   is excluded from model training. Language/task diversity can shift style legitimately.
-- XGBoost is unavailable until at least three authors have ten eligible historical
-  samples each. Its per-author chronological holdout is not cross-project validation.
+- XGBoost additionally requires explicit consented, independently verified dataset
+  provenance and at least three authors with ten eligible historical samples each.
+  Experimental outputs remain uncalibrated; chronological holdout is not independent
+  cross-student/cross-project validation and is not an authorship probability.
 - One BullMQ worker runs serially in the backend deployment. Run one replica for ordered
   baseline updates. Hosting sleep interrupts timely processing; an always-on service
   is needed for a dependable live demonstration.
@@ -118,3 +123,18 @@ HttpTransferCache or dynamic/i18n template ingestion. Angular date formats are s
 a clean security audit or a claim of production hardening. Re-run audits before public
 deployment and review a supported Angular/NestJS upgrade separately from this project's
 architecture-preserving completion. See VALIDATION.md for recorded commands/results.
+
+2026-10-27 review: compatible lockfile updates (including Axios, proxy-addr,
+body-parser and shell-quote) retain the existing Angular/NestJS/BullMQ majors.
+The backend report fell from 10 findings to three moderate findings; its remaining
+NestJS upgrade is breaking. The frontend report fell from 42 to 28 findings
+(two low, 11 moderate, 14 high, one critical). The critical finding is in the
+Piscina build dependency; major Angular/build-tool fixes are still required.
+These counts include transitive/development packages and do not establish runtime
+exploitability or a clean production audit. Development servers stay loopback-only.
+
+Migration 006 enables RLS on the migration runner's tracking table and revokes
+PUBLIC/anon/authenticated privileges, preserving existing rows and owner writes.
+Fresh faculty logins always check the allowlist and confirmation status before
+creating a profile/session. Removing an email from that allowlist does not revoke
+already-issued sessions; explicit session revocation/expiry remains necessary.

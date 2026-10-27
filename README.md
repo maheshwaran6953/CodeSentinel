@@ -247,6 +247,7 @@ A repository without enough eligible history will not force an anomaly quiz. Pre
 | Learning/no score | Expected before sufficient personal history; unknown authors and generated code do not mature the baseline |
 | Quiz generation/grading failed | GROQ_API_KEY, active model ID, organization/model quota and response schema; use retry after the quota reset, original answers remain saved. The 2,400-token output cap and 24,000-character diff cap do not guarantee requests fit a tokens-per-minute quota. Avoid parallel demo submissions. |
 | First request displays Render loading | The free backend sleeps when idle. Open the backend readiness URL and wait for `ready` before the demonstration; this is a hosting cold start, not a completed application request. |
+| Render keeps loading and startup logs report migration connection failure | Check whether the Supabase project is paused. Resume the existing project and wait until its database is healthy; a restoring project may temporarily return a pooler `tenant/user not found` error. Then check backend readiness and restart the existing Render service if it has stopped retrying. Do not reset credentials or recreate the database solely for this error. |
 | Session missing only in production | HTTPS cookie, exact CORS origin, browser third-party-cookie restrictions; use same-site custom domains |
 | npm.ps1 blocked on Windows | Use npm.cmd; no need to change machine execution policy |
 | PyPI has no matching tree-sitter distribution | Use Python 3.12 and a package index that mirrors the grammar wheels; public PyPI was used in validation |
@@ -262,7 +263,7 @@ MIT (as declared by the original project).
 
 ## Activity inbox and dashboard workspace
 
-Authenticated students and faculty have an in-app Updates inbox, refreshed every 30 seconds. It reconstructs current reminders from real repository, commit, quiz, response and review records; it does not fabricate events or require a new database migration. Students see only their own activity. Faculty can open a commit directly in a native modal dialog with a blurred backdrop, keyboard focus containment and Escape/Close support. The student overview offers development history, baseline context, pending discussions and review context; commit links open the correct GitHub repository/SHA.
+Authenticated students and faculty have an in-app Updates inbox, refreshed every 30 seconds. Workflow events and each recipient's read state persist in PostgreSQL through migrations 002/005. Students receive their own private discussion updates and authorized shared-team events; faculty access follows current advisor/guide assignments. Faculty can open a commit directly in a native modal dialog with a blurred backdrop, keyboard focus containment and Escape/Close support. The student overview offers development history, baseline context, pending discussions and review context; commit links open the correct GitHub repository/SHA.
 
 The inbox now persists workflow notifications and account-level read status in PostgreSQL. It supports pagination, unread filtering and exact commit/discussion links. See Durable notifications below for event coverage, reminders and rollout requirements. Email and operating-system push messages are not included.
 
@@ -273,6 +274,16 @@ Groq capacity is shown from allowlisted response headers, including daily reques
 ## Current demonstration status — 2026-09-27
 
 The core deployed evidence/review demonstration is verified live: GitHub login and push, hosted queue and AST analysis, real Groq discussion and grading, Supabase persistence, faculty evidence popup and a preserved review snapshot. The activity inbox and notification-to-commit navigation are verified in the signed-in browser. See the final Live External Validation section of `docs/VALIDATION.md` for exact evidence, deferred secondary checks and limitations. XGBoost infrastructure is retained, but production model training/calibration is intentionally unavailable without suitable consented verified histories.
+
+### Session recovery and service startup
+
+Login checks `/health/ready` before sending faculty credentials or starting GitHub OAuth. Readiness uses at most six read-only attempts with bounded waits; a service that stays unavailable leaves the user on login with a retry explanation. It cannot automatically resume a paused provider project. GitHub reuses its own signed-in account; use a separate browser profile or private window for a different student.
+
+An expired known session conceals the old private screen, closes evidence dialogs and clears the client identity. The user explicitly returns to login; submissions are never automatically replayed. Saved answers remain on the server, while unsaved form edits are not promised to survive navigation. Temporary network/server failures show a stale-data warning without treating them as expired credentials. Read-only API loading is bounded; authorization remains enforced by the backend.
+
+The class overview distinguishes roster profiles, verified accounts, accepted team members and pending link requests. Pending invitations reserve capacity but are not displayed as accepted participation. Loading/empty/error states and responsive tables retain the existing class/team workflow.
+
+Migration `006_secure_migration_tracking.sql` protects the runner's operational tracking table with RLS and revoked browser-role privileges. Apply it with the existing migration runner; it preserves tracking rows and does not change application roles or evidence. Faculty allowlist changes affect fresh logins; existing sessions require explicit revocation or expiry. Framework dependency advisories requiring major upgrades remain documented separately in `docs/AUDIT.md`.
 
 ## Durable notifications
 

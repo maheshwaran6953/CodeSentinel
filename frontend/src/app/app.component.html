@@ -1,2 +1,8 @@
-<router-outlet></router-outlet>
-<app-notifications></app-notifications>
+<section *ngIf="sessionRequired" class="recovery-screen" role="alert">
+  <p class="eyebrow">SESSION ENDED</p><h1>Sign in to continue</h1>
+  <p>Your session expired. Saved answers and project history remain available after you sign in.</p>
+  <p>If you have an unsaved edit, returning to login will leave that page. No submission has been automatically repeated.</p>
+  <a routerLink="/login">Return to sign in</a>
+</section>
+<div *ngIf="recovery.unavailable && !sessionRequired" class="service-notice" role="status">The service is temporarily unreachable or still starting. Wait a moment, then retry your action. Previously loaded information may be out of date.</div>
+<div [hidden]="sessionRequired"><router-outlet></router-outlet><app-notifications></app-notifications></div>
